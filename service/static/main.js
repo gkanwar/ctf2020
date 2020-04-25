@@ -41,6 +41,8 @@ function login(event) {
       showInfoToast('Login success');
       updateDisplay();
     }
+  }).fail(function(jqxhr) {
+    showErrorToast(`${jqxhr.statusText}`);
   });
 }
 
@@ -64,6 +66,8 @@ function register(event) {
       showInfoToast('Register success');
       updateDisplay();
     }
+  }).fail(function(jqxhr) {
+    showErrorToast(`${jqxhr.statusText}`);
   });
 }
 
@@ -86,6 +90,8 @@ function setStatus(event) {
       showInfoToast('Status updated');
       updateDisplay();
     }
+  }).fail(function(jqxhr) {
+    showErrorToast(`${jqxhr.statusText}`);
   });
 }
 
@@ -94,6 +100,18 @@ function logout(event) {
   Cookies.remove('session_id');
   Cookies.remove('session_handshake');
   updateDisplay();
+}
+
+function loadStatus() {
+  var statusContent = $('#status-content');
+  $.get('/status').done(function(data) {
+    if ('ok' in data) {
+      statusContent.text(data['ok']);
+    }
+  }).fail(function(jqxhr) {
+    statusContent.text('<Failed to load>');
+    showErrorToast(`Failed to load status: ${jqxhr.statusText}`);
+  });
 }
 
 function updateDisplay() {
@@ -106,11 +124,7 @@ function updateDisplay() {
     $('.if-not-logged-in').css('display', 'none');
     greeting.text(`Hello ${username}!`);
     statusContent.text('Loading...');
-    $.get('/status').done(function(data) {
-      if ('ok' in data) {
-        statusContent.text(data['ok']);
-      }
-    });
+    loadStatus();
   }
   else {
     $('.if-logged-in').css('display', 'none');
