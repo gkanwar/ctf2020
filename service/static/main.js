@@ -47,6 +47,7 @@ function login(event) {
 function register(event) {
   event.preventDefault();
   var formData = new FormData(event.target);
+  formData.append('handshake', Math.random().toString(36).substring(2,15));
   $.ajax('/register', {
     method: 'POST',
     processData: false,
