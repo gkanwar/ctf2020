@@ -13,6 +13,7 @@ logging.basicConfig(format='[%(levelname)s] %(message)s', level=logging.INFO)
 logger = logging.getLogger('webserver')
 
 MAX_HEADERS = 1024
+MAX_CONTENT_LENGTH = 1024*1024
 STATIC_DIR = './static/'
 
 def get_utc_timestamp():
@@ -92,7 +93,7 @@ class Webhandler(socketserver.StreamRequestHandler):
             return self.send_error(400, 'Bad Request')
         if content_length > MAX_CONTENT_LENGTH:
             return self.send_error(400, 'Bad Request')
-        content = ''
+        content = b''
         while len(content) < content_length:
             chunk = self.rfile.read(content_length - len(content))
             if len(chunk) == 0:
@@ -110,6 +111,7 @@ class Webhandler(socketserver.StreamRequestHandler):
             header_line = self.readline_str().strip()
             if header_line == '': break
             name, value = header_line.split(' ', 1)
+            name = name[:-1] # strip :
             headers[name] = value
         else: # too many headers
             return self.send_error(400, 'Bad Request')
