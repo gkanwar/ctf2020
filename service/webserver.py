@@ -10,7 +10,7 @@ import time
 import urllib.parse
 import wsgiref.handlers as wsgihandlers
 
-from auth import check_login, register_user
+from api import post_api
 from session import Session
 
 MAX_HEADERS = 1024
@@ -112,32 +112,32 @@ class Webhandler(socketserver.StreamRequestHandler):
     def status_line(self, status_code, reason):
         self.write_str(f'HTTP/1.1 {status_code} {reason}\r\n')
     def send_headers(self, headers):
-        for name in headers:
-            val = headers[name]
+        for name, val in headers:
             self.write_str(f'{name}: {val}\r\n')
     def send_generic_headers(self):
-        headers = {
-            'Date': get_utc_timestamp(),
-            'Connection': 'keep-alive'
-        }
+        headers = [
+            ('Date', get_utc_timestamp()),
+            ('Connection', 'keep-alive')
+        ]
         if self.session:
-            headers['Set-Cookie'] = self.session.get_cookie()
+            for cookie in self.session.get_cookies():
+                headers.append(('Set-Cookie', cookie))
         self.send_headers(headers)
     def end_headers(self):
         self.write_str('\r\n')
 
     def send_error(self, status_code, reason):
         self.status_line(status_code, reason)
-        self.send_headers({'Connection': 'close'})
+        self.send_headers([('Connection', 'close')])
         self.write_str('\r\n')
         return False # don't keep alive
     def send_text_content(self, content, content_type):
         self.status_line(200, 'OK')
         self.send_generic_headers()
-        self.send_headers({
-            'Content-Type': f'{content_type}; charset=UTF-8',
-            'Content-Length': len(content)
-        })
+        self.send_headers([
+            ('Content-Type', f'{content_type}; charset=UTF-8'),
+            ('Content-Length', len(content))
+        ])
         self.end_headers()
         self.write_str(content)
         return True # keep alive
@@ -161,10 +161,10 @@ class Webhandler(socketserver.StreamRequestHandler):
         else:
             with open(fname, 'rb') as f:
                 content = f.read()
-        self.send_headers({
-            'Content-Type': content_type,
-            'Content-Length': len(content)
-        })
+        self.send_headers([
+            ('Content-Type', content_type),
+            ('Content-Length', len(content))
+        ])
         self.end_headers()
         if isinstance(content, str):
             self.write_str(content)
@@ -265,7 +265,7 @@ class Webhandler(socketserver.StreamRequestHandler):
             return self.get_static(subpath)
         if path == '/':
             if self.session:
-                username = self.session.store['username']
+                username = self.session.get('username')
                 return self.send_text_content(f"""
                 <html>
                 <body>
@@ -288,35 +288,8 @@ class Webhandler(socketserver.StreamRequestHandler):
             query = parse_post_body(body, headers['Content-Type'])
         else:
             query = {}
-        if path == '/login':
-            if 'username' not in query:
-                return self.send_json_content({'error': 'No username'})
-            if 'password' not in query:
-                return self.send_json_content({'error': 'No password'})
-            success, reason = check_login(query['username'], query['password'])
-            if not success:
-                return self.send_json_content({'error': reason})
-            if not self.session:
-                self.session.setup()
-            self.session.store['username'] = query['username']
-            self.session.save_store()
-            return self.send_json_content({'ok': reason})
-        elif path == '/register':
-            if 'username' not in query:
-                return self.send_json_content({'error': 'No username'})
-            if 'password' not in query:
-                return self.send_json_content({'error': 'No password'})
-            success, reason = register_user(query['username'], query['password'])
-            if not success:
-                return self.send_json_content({'error': reason})
-            # also login
-            if not self.session:
-                self.session.setup()
-            self.session.store['username'] = query['username']
-            self.session.save_store()
-            return self.send_json_content({'ok': reason})
-        else:
-            return self.send_error(404, 'Not Found')
+        return post_api(path, query, self.session,
+                        send_json=self.send_json_content, send_error=self.send_error)
 
 class NonblockingWebserver(socketserver.ThreadingMixIn, socketserver.TCPServer):
     allow_reuse_address = True

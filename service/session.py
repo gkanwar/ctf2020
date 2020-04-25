@@ -8,6 +8,7 @@ from Crypto.Cipher import AES
 
 SESS_COOKIE_NAME = 'session_id'
 USER_COOKIE_NAME = 'username'
+HANDSHAKE_COOKIE_NAME = 'session_handshake'
 SESSION_ID_LEN = 32
 STORE_KEY_FILE = './private/store.key'
 if not os.path.isfile(STORE_KEY_FILE):
@@ -32,14 +33,16 @@ class Session():
         if SESS_COOKIE_NAME not in cookies or USER_COOKIE_NAME not in cookies:
             return Session()
         else:
-            return Session(cookies[SESS_COOKIE_NAME], cookies[USER_COOKIE_NAME])
+            return Session(cookies[SESS_COOKIE_NAME], cookies[USER_COOKIE_NAME],
+                           cookies.get(HANDSHAKE_COOKIE_NAME))
 
-    def __init__(self, session_id=None, user_check=None):
+    def __init__(self, session_id=None, user_check=None, handshake=None):
         self.sid = session_id
+        self.writeable = False
         if self.sid is not None:
-            self.load_store(user_check)
+            self.load_store(user_check, handshake)
 
-    def load_store(self, user_check):
+    def load_store(self, user_check, handshake):
         assert self.sid is not None
         if not self.sid in os.environ:
             self.sid = None
@@ -52,6 +55,8 @@ class Session():
         if store['username'] != user_check:
             self.sid = None
             return
+        if handshake is not None and store.get('handshake') == handshake:
+            self.writeable = True
         self.store = store
 
     def save_store(self):
@@ -66,9 +71,32 @@ class Session():
         self.sid = 'SID' + ''.join(random.choices(string.ascii_letters, k=SESSION_ID_LEN))
         self.save_store()
 
-    def get_cookie(self):
+    def activate_login(self, username, handshake):
+        if not self: self.setup()
+        self.store['username'] = username
+        if handshake is not None:
+            self.store['handshake'] = handshake
+            self.writeable = True
+        self.save_store()
+
+    def get(self, key):
+        return self.store.get(key)
+    def set(self, key, val):
+        if not self.writeable: return False
+        self.store[key] = val
+        self.save_store()
+        return True
+
+    def get_cookies(self):
         username = self.store['username']
-        return f'{SESS_COOKIE_NAME}={self.sid}; {USER_COOKIE_NAME}={username}'
+        cookies = [
+            f'{SESS_COOKIE_NAME}={self.sid}',
+            f'{USER_COOKIE_NAME}={username}'
+        ]
+        if self.writeable:
+            handshake = self.store['handshake']
+            cookies.append(f'{HANDSHAKE_COOKIE_NAME}={handshake}')
+        return cookies
 
     def __bool__(self):
         return self.sid is not None
