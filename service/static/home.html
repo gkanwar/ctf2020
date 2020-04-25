@@ -1,6 +1,34 @@
 <html>
-  <head><title>Homepage</title></head>
+  <head>
+    <title>Homepage</title>
+    <script type="text/javascript" src="https://code.jquery.com/jquery-3.5.0.min.js"></script>
+    <script type="text/javascript" src="https://cdn.jsdelivr.net/npm/js-cookie@rc/dist/js.cookie.min.js"></script>
+    <script type="text/javascript" src="/static/jquery.toast.min.js"></script>
+    <script type="text/javascript" src="/static/main.js"></script>
+    <link rel="stylesheet" type="text/css" href="/static/jquery.toast.min.css">
+  </head>
   <body>
-    Hello!
+    <noscript>This page requires Javascript!</noscript>
+    <div id="greeting"></div>
+    <form id="login" onSubmit="return false;" style="display: none">
+      <label>
+        Login: <input type="text" name="username" placeholder="Username"/>
+      </label>
+      <input type="password" name="password" placeholder="Password"/>
+      <input type="submit" value="Login"/>
+    </form>
+    <form id="register" onSubmit="return false;" style="display: none">
+      <label>
+        Register: <input type="text" name="username" placeholder="Username"/>
+      </label>
+      <input type="password" name="password" placeholder="Password"/>
+      <input type="submit" value="Register"/>
+    </form>
+    <form id="set-status" onSubmit="return false;" style="display: none">
+      <label>
+        Set status: <input type="text" name="status" placeholder="Status"/>
+      </label>
+      <input type="submit" value="Set status"/>
+    </form>
   </body>
 </html>

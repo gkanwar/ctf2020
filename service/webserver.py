@@ -264,21 +264,7 @@ class Webhandler(socketserver.StreamRequestHandler):
             subpath = path[7:]
             return self.get_static(subpath)
         if path == '/':
-            if self.session:
-                username = self.session.get('username')
-                return self.send_text_content(f"""
-                <html>
-                <body>
-                Hello, {username}!
-                </body>
-                </html>""", 'text/html')
-            else:
-                return self.send_text_content(f"""
-                <html>
-                <body>
-                Hello, world! Please log in.
-                </body>
-                </html>""", 'text/html')
+            return self.get_static('home.html')
         else:
             return self.send_error(404, 'Not Found')
 
