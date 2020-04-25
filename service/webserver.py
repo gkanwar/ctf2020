@@ -1,27 +1,21 @@
 #!/usr/bin/env python3
 
-import datetime
 import json
 import logging
 import os
 import socketserver
 import sys
-import time
 import urllib.parse
-import wsgiref.handlers as wsgihandlers
 
-from api import post_api
+from api import get_api, post_api
 from session import Session
+from util import get_utc_now
 
 MAX_HEADERS = 1024
 MAX_CONTENT_LENGTH = 1024*1024
 STATIC_DIR = './static/'
 logging.basicConfig(format='[%(levelname)s] %(message)s', level=logging.INFO)
 logger = logging.getLogger('webserver')
-
-def get_utc_timestamp():
-    now = time.mktime(datetime.datetime.now().timetuple())
-    return wsgihandlers.format_date_time(now)
 
 def parse_path(path):
     if not '?' in path: path += '?'
@@ -116,12 +110,11 @@ class Webhandler(socketserver.StreamRequestHandler):
             self.write_str(f'{name}: {val}\r\n')
     def send_generic_headers(self):
         headers = [
-            ('Date', get_utc_timestamp()),
+            ('Date', get_utc_now()),
             ('Connection', 'keep-alive')
         ]
-        if self.session:
-            for cookie in self.session.get_cookies():
-                headers.append(('Set-Cookie', cookie))
+        for cookie in self.session.get_cookies():
+            headers.append(('Set-Cookie', cookie))
         self.send_headers(headers)
     def end_headers(self):
         self.write_str('\r\n')
@@ -266,7 +259,8 @@ class Webhandler(socketserver.StreamRequestHandler):
         if path == '/':
             return self.get_static('home.html')
         else:
-            return self.send_error(404, 'Not Found')
+            return get_api(path, query, self.session,
+                           send_json=self.send_json_content, send_error=self.send_error)
 
     def post(self, path, *, headers, body, cookies):
         path, _ = parse_path(path)

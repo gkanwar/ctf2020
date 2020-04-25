@@ -5,6 +5,7 @@ import random
 import string
 from Crypto import Random
 from Crypto.Cipher import AES
+from util import get_utc_past
 
 SESS_COOKIE_NAME = 'session_id'
 USER_COOKIE_NAME = 'username'
@@ -88,6 +89,12 @@ class Session():
         return True
 
     def get_cookies(self):
+        if not self: # clear cookies if no valid session
+            return [
+                f'{SESS_COOKIE_NAME}=; Expires={get_utc_past()}',
+                f'{USER_COOKIE_NAME}=; Expires={get_utc_past()}',
+                f'{HANDSHAKE_COOKIE_NAME}=; Expires={get_utc_past()}'
+            ]
         username = self.store['username']
         cookies = [
             f'{SESS_COOKIE_NAME}={self.sid}',

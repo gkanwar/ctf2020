@@ -32,3 +32,11 @@ def post_api(path, query, session, *, send_json, send_error):
         return send_json({'ok': 'Status updated'})
     else:
         return send_error(404, 'Not Found')
+
+def get_api(path, query, session, *, send_json, send_error):
+    if path == '/status':
+        if not session:
+            return send_json({'error': 'Not logged in'})
+        return send_json({'ok': session.get('status')})
+    else:
+        return send_error(404, 'Not Found')

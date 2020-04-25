@@ -94,19 +94,30 @@ function updateDisplay() {
   var registerForm = $('#register');
   var statusForm = $('#set-status');
   var greeting = $('#greeting');
+  var status = $('#status');
+  var statusContent = $('#status-content');
   var loggedIn = (!!Cookies.get('session_id')) && (!!Cookies.get('username'));
   var username = Cookies.get('username');
   if (loggedIn) {
     loginForm.css('display', 'none');
     registerForm.css('display', 'none');
     statusForm.css('display', '');
+    status.css('display', '');
     greeting.text(`Hello ${username}!`);
+    statusContent.text('Loading...');
+    $.get('/status').done(function(data) {
+      if ('ok' in data) {
+        statusContent.text(data['ok']);
+      }
+    });
   }
   else {
     loginForm.css('display', '');
     registerForm.css('display', '');
     statusForm.css('display', 'none');
+    status.css('display', 'none');
     greeting.text('Welcome. Please log in!');
+    statusContent.text('');
   }
 }
 
