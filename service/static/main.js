@@ -89,20 +89,21 @@ function setStatus(event) {
   });
 }
 
+function logout(event) {
+  Cookies.remove('username');
+  Cookies.remove('session_id');
+  Cookies.remove('session_handshake');
+  updateDisplay();
+}
+
 function updateDisplay() {
-  var loginForm = $('#login');
-  var registerForm = $('#register');
-  var statusForm = $('#set-status');
   var greeting = $('#greeting');
-  var status = $('#status');
   var statusContent = $('#status-content');
   var loggedIn = (!!Cookies.get('session_id')) && (!!Cookies.get('username'));
   var username = Cookies.get('username');
   if (loggedIn) {
-    loginForm.css('display', 'none');
-    registerForm.css('display', 'none');
-    statusForm.css('display', '');
-    status.css('display', '');
+    $('.if-logged-in').css('display', '');
+    $('.if-not-logged-in').css('display', 'none');
     greeting.text(`Hello ${username}!`);
     statusContent.text('Loading...');
     $.get('/status').done(function(data) {
@@ -112,10 +113,8 @@ function updateDisplay() {
     });
   }
   else {
-    loginForm.css('display', '');
-    registerForm.css('display', '');
-    statusForm.css('display', 'none');
-    status.css('display', 'none');
+    $('.if-logged-in').css('display', 'none');
+    $('.if-not-logged-in').css('display', '');
     greeting.text('Welcome. Please log in!');
     statusContent.text('');
   }
@@ -125,8 +124,10 @@ $(document).ready(function() {
   var loginForm = $('#login');
   var registerForm = $('#register');
   var statusForm = $('#set-status');
+  var logoutForm = $('#logout');
   loginForm.submit(login);
   registerForm.submit(register);
   statusForm.submit(setStatus);
+  logoutForm.submit(logout);
   updateDisplay();
 });

@@ -10,26 +10,31 @@
   <body>
     <noscript>This page requires Javascript!</noscript>
     <div id="greeting"></div>
-    <div id="status" style="display: none">Status: <span id="status-content"></span></div>
-    <form id="login" onSubmit="return false;" style="display: none">
+    <div id="status" class="if-logged-in" style="display: none">
+      Status: <span id="status-content"></span>
+    </div>
+    <form id="login" class="if-not-logged-in" onSubmit="return false;" style="display: none">
       <label>
         Login: <input type="text" name="username" placeholder="Username"/>
       </label>
       <input type="password" name="password" placeholder="Password"/>
       <input type="submit" value="Login"/>
     </form>
-    <form id="register" onSubmit="return false;" style="display: none">
+    <form id="register" class="if-not-logged-in" onSubmit="return false;" style="display: none">
       <label>
         Register: <input type="text" name="username" placeholder="Username"/>
       </label>
       <input type="password" name="password" placeholder="Password"/>
       <input type="submit" value="Register"/>
     </form>
-    <form id="set-status" onSubmit="return false;" style="display: none">
+    <form id="set-status" class="if-logged-in" onSubmit="return false;" style="display: none">
       <label>
         Set status: <input type="text" name="status" placeholder="Status"/>
       </label>
       <input type="submit" value="Set status"/>
+    </form>
+    <form id="logout" class="if-logged-in" onSubmit="return false;" style="display: none">
+      <input type="submit" value="logout"/>
     </form>
   </body>
 </html>
