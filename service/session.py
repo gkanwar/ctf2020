@@ -40,6 +40,9 @@ class Session():
 
     def load_store(self):
         assert self.sid is not None
+        if not self.sid in os.environ:
+            self.sid = None
+            return
         store_crypt = base64.b64decode(os.environ[self.sid].encode('utf-8'))
         iv = store_crypt[:AES.block_size]
         cipher = AES.new(STORE_KEY, AES.MODE_CBC, iv)
