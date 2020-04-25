@@ -21,7 +21,8 @@ def pad(s):
     padding = AES.block_size - len(s) % AES.block_size
     return s + padding*chr(padding)
 def unpad(s):
-    padding = ord(s[-1])
+    padding = s[-1]
+    assert isinstance(padding, int)
     return s[:-padding]
 
 class Session():
@@ -56,3 +57,9 @@ class Session():
         self.store = {}
         self.sid = 'SID' + ''.join(random.choices(string.ascii_letters, k=SESSION_ID_LEN))
         self.save_store()
+
+    def get_cookie(self):
+        return f'{COOKIE_NAME}={self.sid}'
+
+    def __bool__(self):
+        return self.sid is not None

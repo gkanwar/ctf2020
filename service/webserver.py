@@ -10,6 +10,7 @@ import time
 import urllib.parse
 import wsgiref.handlers as wsgihandlers
 
+from auth import check_login, register_user
 from session import Session
 
 MAX_HEADERS = 1024
@@ -23,11 +24,84 @@ def get_utc_timestamp():
     return wsgihandlers.format_date_time(now)
 
 def parse_path(path):
-    path = urllib.parse.unquote(path)
-    path = path.split('#', 1)[0]
     if not '?' in path: path += '?'
+    path = path.split('#', 1)[0]
     path, query = path.split('?', 1)
+    path = urllib.parse.unquote(path)
+    query = parse_query(query)
     return path, query
+
+def parse_query(query):
+    bits = query.split('&')
+    out = {}
+    for bit in bits:
+        if '=' not in bit: continue
+        name, value = bit.split('=', 1)
+        name = urllib.parse.unquote(name)
+        value = urllib.parse.unquote(value)
+        out[name] = value
+    return out
+
+def parse_form_data_chunk(chunk):
+    try:
+        headers = {}
+        header_section, form_value = chunk.split(b'\r\n\r\n', 1)
+        header_section = header_section.decode('utf-8')
+        for line in header_section.split('\r\n'):
+            line = line.strip()
+            if line == '': continue
+            name, value = line.split(': ', 1)
+            headers[name] = value
+        if not 'Content-Disposition' in headers:
+            logger.error('No Content-Disposition for form data')
+            return {}
+        disp = headers['Content-Disposition']
+        bits = disp.split('; ')
+        if len(bits) < 2 or bits[0] != 'form-data':
+            logger.error('Bad Content-Disposition for form data')
+            return {}
+        form_info = bits[1]
+        if not '=' in form_info:
+            logger.error('Bad Content-Disposition for form data')
+            return {}
+        key, value = form_info.split('=')
+        if key != 'name' or not value.startswith('"') or not value.endswith('"'):
+            logger.error('Bad Content-Disposition for form data')
+            return {}
+        form_name = value[1:-1]
+        # assume text form value
+        form_value = form_value.decode('utf-8').strip()
+        return {form_name: form_value}
+    except Exception as e:
+        logger.error(f'Parsing form data failed with error {e}, skipping')
+        return {}
+
+def parse_post_body(body, content_type):
+    content_type, details = content_type.split('; ', 1)
+    if content_type == 'application/x-www-form-urlencoded':
+        return parse_query(body)
+    elif content_type == 'multipart/form-data':
+        if not '=' in details:
+            logger.error(f'Bad multipart/xxx spec')
+            return {}
+        name, value = details.split('=', 1)
+        if not name == 'boundary':
+            logger.error(f'Bad multipart/xxx spec')
+            return {}
+        boundary = ('--' + value).encode('utf-8') # why extra hyphens??
+        chunks = body.split(boundary)
+        if len(chunks) < 3:
+            logger.error(f'Bad multipart/xxx data')
+            return {}
+        chunks = chunks[1:-1]
+        form_data = {}
+        for chunk in chunks:
+            form_data.update(parse_form_data_chunk(chunk))
+        logger.info(f'Got post form data = {form_data}')
+        return form_data
+    else:
+        logger.warning(f'Unsupported form data content type {content_type}')
+        return {}
 
 class Webhandler(socketserver.StreamRequestHandler):
 
@@ -42,10 +116,13 @@ class Webhandler(socketserver.StreamRequestHandler):
             val = headers[name]
             self.write_str(f'{name}: {val}\r\n')
     def send_generic_headers(self):
-        self.send_headers({
+        headers = {
             'Date': get_utc_timestamp(),
             'Connection': 'keep-alive'
-        })
+        }
+        if self.session:
+            headers['Set-Cookie'] = self.session.get_cookie()
+        self.send_headers(headers)
     def end_headers(self):
         self.write_str('\r\n')
 
@@ -64,6 +141,8 @@ class Webhandler(socketserver.StreamRequestHandler):
         self.end_headers()
         self.write_str(content)
         return True # keep alive
+    def send_json_content(self, content):
+        return self.send_text_content(json.dumps(content)+'\n', 'application/json')
     def send_file_content(self, fname):
         self.status_line(200, 'OK')
         self.send_generic_headers()
@@ -131,25 +210,26 @@ class Webhandler(socketserver.StreamRequestHandler):
         for i in range(MAX_HEADERS):
             header_line = self.readline_str().strip()
             if header_line == '': break
-            name, value = header_line.split(' ', 1)
-            name = name[:-1] # strip :
+            name, value = header_line.split(': ', 1)
             headers[name] = value
         else: # too many headers
             return self.send_error(400, 'Bad Request')
         body = self.read_body(headers)
         if body == False: return False
         cookies = self.parse_cookies(headers)
-        session = Session.from_cookies(cookies)
+        self.session = Session.from_cookies(cookies)
         logger.info(f'{method} {path} (from {self.client_address[0]}) body {len(body)}')
         if method == 'GET':
-            return self.get(path, headers=headers, body=body,
-                            session=session, cookies=cookies)
+            return self.get(path, headers=headers, body=body, cookies=cookies)
         elif method == 'POST':
-            return self.post(path, headers=headers, body=body,
-                             session=session, cookies=cookies)
+            return self.post(path, headers=headers, body=body, cookies=cookies)
         else:
             return self.send_error(405, 'Method Not Allowed')
-        
+
+    def setup(self):
+        super().setup()
+        self.session = None
+
     def handle(self):
         try:
             keep_alive = True
@@ -160,6 +240,9 @@ class Webhandler(socketserver.StreamRequestHandler):
             logger.exception('Fatal error in handle()')
         logger.info('Request handled, exiting')
 
+    def finish(self):
+        if self.session: self.session.save_store()
+
     def get_static(self, subpath):
         if '..' in subpath:
             return self.send_error(403, 'Forbidden')
@@ -168,7 +251,7 @@ class Webhandler(socketserver.StreamRequestHandler):
             return self.send_error(404, 'Not Found')
         return self.send_file_content(fname)
 
-    def get(self, path, *, headers, body, session, cookies):
+    def get(self, path, *, headers, body, cookies):
         # for our friends
         if path == '/🙃':
             return self.send_text_content(
@@ -181,20 +264,57 @@ class Webhandler(socketserver.StreamRequestHandler):
             subpath = path[7:]
             return self.get_static(subpath)
         if path == '/':
-            return self.send_text_content("""
-            <html>
-            <body>
-            Hello, world!
-            </body>
-            </html>""", 'text/html')
+            if self.session:
+                username = self.session.store['username']
+                return self.send_text_content(f"""
+                <html>
+                <body>
+                Hello, {username}!
+                </body>
+                </html>""", 'text/html')
+            else:
+                return self.send_text_content(f"""
+                <html>
+                <body>
+                Hello, world! Please log in.
+                </body>
+                </html>""", 'text/html')
         else:
             return self.send_error(404, 'Not Found')
 
-    def post(self, path, *, headers, body, session, cookies):
+    def post(self, path, *, headers, body, cookies):
         path, _ = parse_path(path)
+        if 'Content-Type' in headers:
+            query = parse_post_body(body, headers['Content-Type'])
+        else:
+            query = {}
         if path == '/login':
-            # TODO: check auth, then create session
-            raise NotImplementedError()
+            if 'username' not in query:
+                return self.send_json_content({'error': 'No username'})
+            if 'password' not in query:
+                return self.send_json_content({'error': 'No password'})
+            success, reason = check_login(query['username'], query['password'])
+            if not success:
+                return self.send_json_content({'error': reason})
+            if not self.session:
+                self.session.setup()
+            self.session.store['username'] = query['username']
+            self.session.save_store()
+            return self.send_json_content({'ok': reason})
+        elif path == '/register':
+            if 'username' not in query:
+                return self.send_json_content({'error': 'No username'})
+            if 'password' not in query:
+                return self.send_json_content({'error': 'No password'})
+            success, reason = register_user(query['username'], query['password'])
+            if not success:
+                return self.send_json_content({'error': reason})
+            # also login
+            if not self.session:
+                self.session.setup()
+            self.session.store['username'] = query['username']
+            self.session.save_store()
+            return self.send_json_content({'ok': reason})
         else:
             return self.send_error(404, 'Not Found')
 
