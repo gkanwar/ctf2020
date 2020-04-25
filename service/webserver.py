@@ -9,16 +9,25 @@ import sys
 import time
 import urllib.parse
 import wsgiref.handlers as wsgihandlers
-logging.basicConfig(format='[%(levelname)s] %(message)s', level=logging.INFO)
-logger = logging.getLogger('webserver')
+
+from session import Session
 
 MAX_HEADERS = 1024
 MAX_CONTENT_LENGTH = 1024*1024
 STATIC_DIR = './static/'
+logging.basicConfig(format='[%(levelname)s] %(message)s', level=logging.INFO)
+logger = logging.getLogger('webserver')
 
 def get_utc_timestamp():
     now = time.mktime(datetime.datetime.now().timetuple())
     return wsgihandlers.format_date_time(now)
+
+def parse_path(path):
+    path = urllib.parse.unquote(path)
+    path = path.split('#', 1)[0]
+    if not '?' in path: path += '?'
+    path, query = path.split('?', 1)
+    return path, query
 
 class Webhandler(socketserver.StreamRequestHandler):
 
@@ -101,6 +110,18 @@ class Webhandler(socketserver.StreamRequestHandler):
             content += chunk
         return content
 
+    def parse_cookies(self, headers):
+        if not 'Cookie' in headers:
+            return {}
+        cookie_str = headers['Cookie']
+        cookie_list = cookie_str.split('; ')
+        cookies = {}
+        for cookie in cookie_list:
+            if not '=' in cookie: continue
+            name, value = cookie.split('=', 1)
+            cookies[name] = value
+        return cookies
+
     def handle_http(self):
         request_line = self.readline_str().strip()
         tokens = request_line.split()
@@ -117,11 +138,15 @@ class Webhandler(socketserver.StreamRequestHandler):
             return self.send_error(400, 'Bad Request')
         body = self.read_body(headers)
         if body == False: return False
-        logger.info(f'{method} {path} (from {self.client_address[0]})')
+        cookies = self.parse_cookies(headers)
+        session = Session.from_cookies(cookies)
+        logger.info(f'{method} {path} (from {self.client_address[0]}) body {len(body)}')
         if method == 'GET':
-            return self.get(path, headers=headers, body=body)
+            return self.get(path, headers=headers, body=body,
+                            session=session, cookies=cookies)
         elif method == 'POST':
-            return self.post(path, headers=headers, body=body)
+            return self.post(path, headers=headers, body=body,
+                             session=session, cookies=cookies)
         else:
             return self.send_error(405, 'Method Not Allowed')
         
@@ -142,17 +167,14 @@ class Webhandler(socketserver.StreamRequestHandler):
         if not os.path.isfile(fname):
             return self.send_error(404, 'Not Found')
         return self.send_file_content(fname)
-        
-    def get(self, path, *, headers, body):
+
+    def get(self, path, *, headers, body, session, cookies):
         # for our friends
         if path == '/🙃':
             return self.send_text_content(
-                'Hello friend, have some env vars:\n'
+                'Hello friend, here is the list of sessions:\n'
                 + json.dumps(dict(os.environ)) + '\n', 'text/plain')
-        path = urllib.parse.unquote(path)
-        path = path.split('#', 1)[0]
-        if not '?' in path: path += '?'
-        path, query = path.split('?', 1)
+        path, query = parse_path(path)
         if not path.startswith('/'):
             return self.send_error(404, 'Not Found')
         if path.startswith('/static'):
@@ -168,9 +190,13 @@ class Webhandler(socketserver.StreamRequestHandler):
         else:
             return self.send_error(404, 'Not Found')
 
-    def post(self, path, *, headers, body):
-        # FORNOW
-        return self.send_error(405, 'Method Not Allowed')
+    def post(self, path, *, headers, body, session, cookies):
+        path, _ = parse_path(path)
+        if path == '/login':
+            # TODO: check auth, then create session
+            raise NotImplementedError()
+        else:
+            return self.send_error(404, 'Not Found')
 
 class NonblockingWebserver(socketserver.ThreadingMixIn, socketserver.TCPServer):
     allow_reuse_address = True
