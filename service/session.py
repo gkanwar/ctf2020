@@ -6,7 +6,8 @@ import string
 from Crypto import Random
 from Crypto.Cipher import AES
 
-COOKIE_NAME = 'session_id'
+SESS_COOKIE_NAME = 'session_id'
+USER_COOKIE_NAME = 'username'
 SESSION_ID_LEN = 32
 STORE_KEY_FILE = './private/store.key'
 if not os.path.isfile(STORE_KEY_FILE):
@@ -28,17 +29,17 @@ def unpad(s):
 class Session():
     @staticmethod
     def from_cookies(cookies):
-        if not COOKIE_NAME in cookies:
+        if SESS_COOKIE_NAME not in cookies or USER_COOKIE_NAME not in cookies:
             return Session()
         else:
-            return Session(cookies[COOKIE_NAME])
+            return Session(cookies[SESS_COOKIE_NAME], cookies[USER_COOKIE_NAME])
 
-    def __init__(self, session_id=None):
+    def __init__(self, session_id=None, user_check=None):
         self.sid = session_id
         if self.sid is not None:
-            self.load_store()
+            self.load_store(user_check)
 
-    def load_store(self):
+    def load_store(self, user_check):
         assert self.sid is not None
         if not self.sid in os.environ:
             self.sid = None
@@ -47,7 +48,11 @@ class Session():
         iv = store_crypt[:AES.block_size]
         cipher = AES.new(STORE_KEY, AES.MODE_CBC, iv)
         store_json = unpad(cipher.decrypt(store_crypt[AES.block_size:]))
-        self.store = json.loads(store_json)
+        store = json.loads(store_json)
+        if store['username'] != user_check:
+            self.sid = None
+            return
+        self.store = store
 
     def save_store(self):
         assert self.sid is not None
@@ -62,7 +67,8 @@ class Session():
         self.save_store()
 
     def get_cookie(self):
-        return f'{COOKIE_NAME}={self.sid}'
+        username = self.store['username']
+        return f'{SESS_COOKIE_NAME}={self.sid}; {USER_COOKIE_NAME}={username}'
 
     def __bool__(self):
         return self.sid is not None
