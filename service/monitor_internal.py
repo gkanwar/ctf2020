@@ -22,7 +22,7 @@ class MonitorHandler(socketserver.StreamRequestHandler):
         env = json.loads(lines[1])
         for key in env:
             if key.startswith('SID'):
-                self.wfile.write((key[3:3+6] + '\n').encode('utf-8'))
+                self.wfile.write((f'{key[3:3+6]} {env[key]}' + '\n').encode('utf-8'))
 
 class NonblockingServer(socketserver.ThreadingMixIn, socketserver.TCPServer):
     allow_reuse_address = True

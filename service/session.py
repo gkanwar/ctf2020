@@ -40,7 +40,7 @@ class Session():
 
     def __init__(self, session_id=None, user_check=None, handshake=None):
         self.sid = session_id
-        self.writeable = False
+        self.privileged = False
         if self.sid is not None:
             self.load_store(user_check, handshake)
 
@@ -58,7 +58,7 @@ class Session():
             self.sid = None
             return
         if handshake is not None and store.get('handshake') == handshake:
-            self.writeable = True
+            self.privileged = True
         self._store = store
         self.user = User(store['username'])
 
@@ -80,18 +80,18 @@ class Session():
         self.user = User(username)
         if handshake is not None:
             self._store['handshake'] = handshake
-            self.writeable = True
+            self.privileged = True
         self.save_store()
 
     def get(self, key):
         return self._store.get(key) or self.user.get(key)
     def set(self, key, val):
-        if not self.writeable: return False
+        if not self.privileged: return False
         self._store[key] = val
         self.save_store()
         return True
     def set_persist(self, key, val):
-        if not self.writeable: return False
+        if not self.privileged: return False
         self.user.set(key, val)
         return True
 
@@ -107,7 +107,7 @@ class Session():
             f'{SESS_COOKIE_NAME}={self.sid}',
             f'{USER_COOKIE_NAME}={username}'
         ]
-        if self.writeable:
+        if self.privileged:
             handshake = self._store['handshake']
             cookies.append(f'{HANDSHAKE_COOKIE_NAME}={handshake}')
         return cookies
