@@ -89,6 +89,7 @@ function setStatus(event) {
     else {
       showInfoToast('Status updated');
       updateDisplay();
+      updateStatusList();
     }
   }).fail(function(jqxhr) {
     showErrorToast(`${jqxhr.statusText}`);
@@ -134,6 +135,35 @@ function updateDisplay() {
   }
 }
 
+function updateStatusList() {
+  var statusList = $('#status-list');
+  statusList.text('Loading...');
+  $.get('/status_all')
+    .done(function(data) {
+      if ('error' in data) {
+        showErrorToast(data['error']);
+        statusList.text('<Failed to load>');
+      }
+      else if (!('ok' in data)) {
+        statusList.text('<Failed to load>');
+      }
+      else {
+        statusList.html('<table>');
+        var statusTable = $('#status-list table');
+        $.each(data['ok'], function(i, item) {
+          console.log(item);
+          var tr = $('<tr>').append(
+            $('<td>').text(item.username),
+            $('<td>').text(item.status)
+          ).appendTo(statusTable);
+        });
+      }
+    })
+    .fail(function(jqxhr) {
+      statusList.text('<Failed to load>');
+    });
+}
+
 $(document).ready(function() {
   var loginForm = $('#login');
   var registerForm = $('#register');
@@ -144,4 +174,5 @@ $(document).ready(function() {
   statusForm.submit(setStatus);
   logoutForm.submit(logout);
   updateDisplay();
+  updateStatusList();
 });

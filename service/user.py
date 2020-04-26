@@ -1,3 +1,4 @@
+import glob
 import json
 import os
 
@@ -16,6 +17,12 @@ def save(username, data):
     fname = USER_DIR + username + USER_EXT
     with open(fname, 'w') as f:
         json.dump(data, f)
+
+def list_users():
+    user_files = glob.glob(USER_DIR + '*' + USER_EXT)
+    users = [os.path.splitext(os.path.basename(f))[0] for f in user_files]
+    print('list_users', users)
+    return users
 
 class User():
     def __init__(self, username):

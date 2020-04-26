@@ -1,5 +1,6 @@
 import logging
 from auth import check_login, register_user
+from user import list_users, User
 logger = logging.getLogger('webserver')
 
 def post_api(*args, send_error, **kwargs):
@@ -54,5 +55,12 @@ def _get_api(path, query, session, *, send_json, send_error):
         if not session:
             return send_json({'error': 'Not logged in'})
         return send_json({'ok': session.get('status')})
+    elif path == '/status_all':
+        users = list_users()
+        out = []
+        for username in users:
+            u = User(username)
+            out.append({'username': username, 'status': u.get('status')})
+        return send_json({'ok': out})
     else:
         return send_error(404, 'Not Found')
