@@ -4,12 +4,19 @@
     <script type="text/javascript" src="https://code.jquery.com/jquery-3.5.0.min.js"></script>
     <script type="text/javascript" src="https://cdn.jsdelivr.net/npm/js-cookie@rc/dist/js.cookie.min.js"></script>
     <script type="text/javascript" src="/static/jquery.toast.min.js"></script>
+    <script type="text/javascript" src="/static/jsbn.js"></script>
     <script type="text/javascript" src="/static/main.js"></script>
     <link rel="stylesheet" type="text/css" href="/static/jquery.toast.min.css">
   </head>
   <body>
     <noscript>This page requires Javascript!</noscript>
     <div id="greeting"></div>
+    <div id="pub-key" class="if-logged-in" style="display: none">
+      Public key: <span id="pub-key-content"></span>
+    </div>
+    <div id="priv-key" class="if-logged-in" style="display: none">
+      Private key: <span id="priv-key-content"></span>
+    </div>
     <div id="status" class="if-logged-in" style="display: none">
       Status: <span id="status-content"></span>
     </div>

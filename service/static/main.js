@@ -115,6 +115,35 @@ function loadStatus() {
   });
 }
 
+function loadKeys() {
+  var pubKeyContent = $('#pub-key-content');
+  var privKeyContent = $('#priv-key-content');
+  var username = Cookies.get('username');
+  $.get(`/pub_key?username=${username}`)
+    .done(function(data) {
+      if ('ok' in data) {
+        var keyN = new BigInteger(data['ok'].n, 16);
+        pubKeyContent.text(`n = ${keyN.toString(16)}`);
+      }
+    })
+    .fail(function(data) {
+      pubKeyContent.text('<Failed to load>');
+      showErrorToast(`Failed to load public key: ${jqxhr.statusText}`);
+    });
+  $.get(`/priv_key`)
+    .done(function(data) {
+      if ('ok' in data) {
+        var keyN = new BigInteger(data['ok'].n, 16);
+        var keyD = new BigInteger(data['ok'].d, 16);
+        privKeyContent.text(`n = ${keyN.toString(16)}, d = ${keyD.toString(16)}`);
+      }
+    })
+    .fail(function(data) {
+      privKeyContent.text('<Failed to load>');
+      showErrorToast(`Failed to load private key: ${jqxhr.statusText}`);
+    });
+}
+
 function updateDisplay() {
   var greeting = $('#greeting');
   var statusContent = $('#status-content');
@@ -126,6 +155,7 @@ function updateDisplay() {
     greeting.text(`Hello ${username}!`);
     statusContent.text('Loading...');
     loadStatus();
+    loadKeys();
   }
   else {
     $('.if-logged-in').css('display', 'none');
@@ -151,7 +181,6 @@ function updateStatusList() {
         statusList.html('<table>');
         var statusTable = $('#status-list table');
         $.each(data['ok'], function(i, item) {
-          console.log(item);
           var tr = $('<tr>').append(
             $('<td>').text(item.username),
             $('<td>').text(item.status)

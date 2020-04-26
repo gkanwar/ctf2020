@@ -90,7 +90,10 @@ def _get_api(path, query, session, *, send_json, send_error):
             return send_json({'error': 'Not logged in'})
         if not session.privileged:
             return send_json({'error': 'Not privileged session'})
-        return send_json({'ok': session.get('priv_key')})
+        priv_key = session.get('priv_key')
+        for k in priv_key:
+            priv_key[k] = hex(priv_key[k])[2:]
+        return send_json({'ok': priv_key})
     elif path == '/pub_key':
         if 'username' not in query:
             return send_json({'error': 'No username'})
@@ -99,7 +102,9 @@ def _get_api(path, query, session, *, send_json, send_error):
         pub_key = u.get('pub_key')
         if pub_key is None:
             return send_json({'error': 'No pub key found'})
-        return send_json({'ok': session.get('pub_key')})
+        for k in pub_key:
+            pub_key[k] = hex(pub_key[k])[2:]
+        return send_json({'ok': pub_key})
     elif path == '/broadcast_messages':
         return send_json({'ok': list_broadcasted()})
     elif path == '/messages':
