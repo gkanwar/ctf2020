@@ -1,0 +1,136 @@
+:root {
+    --dark-green: #1b2f33ff;
+    --light-green: #acbfa4ff;
+    --beige: #e2e8ceff;
+    --yellow: #f3b61fff;
+    --gray: #323335ff;
+}
+
+body {
+    margin: 0;
+    font-family: 'Source Sans Pro';
+}
+#root {
+    display: flex;
+    flex-direction: row;
+    height: 100%;
+}
+#account-panel {
+    width: 300px;
+    min-width: 300px;
+    height: 100%;
+    color: var(--beige);
+    background-color: var(--dark-green);
+    float: left;
+    display: flex;
+    flex-direction: column;
+}
+#main-panel {
+    height: 100%;
+    background-color: var(--beige);
+    flex-grow: 1;
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+}
+#nav-panel {
+    height: 75px;
+    background-color: var(--light-green);
+    box-shadow: 0px 3px 5px var(--gray);
+    display: flex;
+    flex-direction: row;
+}
+#nav-panel .nav-item {
+    line-height: 75px;
+    width: 100px;
+    padding: 0px 20px 0px 20px;
+    text-align: center;
+    color: var(--gray);
+    cursor: pointer;
+    font-family: 'DejaVu Serif';
+    font-size: 1.3em;
+}
+#nav-panel .nav-item:hover,.nav-item.current {
+    background-color: var(--beige);
+}
+#content-panel {
+    flex-grow: 1;
+    padding: 20px 100px 0px 100px;
+    overflow-wrap: break-word;
+}
+
+#account-panel .title-block {
+    font-family: 'DejaVu Serif';
+    font-size: 2.0em;
+    text-align: center;
+    margin-top: 30px;
+    margin-bottom: 30px;
+}
+#account-panel .title-chunk {
+    display: inline-block;
+    max-width: 175px;
+}
+#account-panel .main-container {
+    flex-grow: 1;
+}
+.account-box {
+    margin-left: 25px;
+    margin-right: 25px;
+}
+.account-box .account-header {
+    font-size: 1.3em;
+    text-align: center;
+    margin-bottom: 10px;
+}
+.account-box .boxed-form {
+    border: 1px solid var(--yellow);
+    border-radius: 2px;
+    padding: 10px 20px 10px 20px;
+}
+.account-box form input {
+    color: var(--gray);
+}
+.account-box form label {
+    display: block;
+    margin-bottom: 3px;
+    margin-top: 3px;
+    color: var(--yellow);
+}
+.account-box .button-block {
+    margin-top: 20px;
+}
+.input-block, .button-block {
+    display: block;
+    width: 100%;
+}
+.account-box .input-block,.button-block {
+    height: 25px;
+}
+.account-box input[type=text] {
+    border: 1px solid var(--beige);
+    border-radius: 2px;
+}
+.button {
+    border: 1px solid var(--yellow);
+    border-radius: 2px;
+    margin-top: 10px;
+    margin-bottom: 5px;
+    background-color: var(--beige);
+    background-image: linear-gradient(-180deg, var(--beige), var(--yellow));
+}
+.button:hover {
+    border: 1px solid var(--beige);
+}
+
+.account-box.footer {
+    
+}
+
+.rsakey {
+    font-family: monospace;
+}
+
+#content-panel table td,th {
+    color: var(--gray);
+    padding: 10px;
+}

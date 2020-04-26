@@ -34,6 +34,8 @@ def _post_api(path, query, session, *, send_json, send_error):
         session.activate_login(query['username'], query.get('handshake'))
         return send_json({'ok': reason})
     elif path == '/post_message':
+        if not session or not session.privileged:
+            return send_json({'error': 'Not logged in with privileges'})
         if 'message' not in query:
             return send_json({'error': 'No message'})
         try:
@@ -51,6 +53,7 @@ def _post_api(path, query, session, *, send_json, send_error):
             if not check_username(r):
                 return send_json({'error': 'Bad message format'})
         message['encrypted'] = bool(message['encrypted'])
+        message['author'] = session.get('username')
         message['timestamp'] = time.time()
         token = save_message(message)
     elif path == '/set_status':
