@@ -5,6 +5,7 @@ import shutil
 
 shutil.rmtree('./service_prod', ignore_errors=True)
 os.mkdir('./service_prod')
+os.mkdir('./service_prod/private')
 for f in glob.glob('./service/*.py'):
     shutil.copy(f, './service_prod')
 shutil.copytree('./service/static', './service_prod/static')

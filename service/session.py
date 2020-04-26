@@ -23,7 +23,7 @@ else:
 
 def pad(s):
     padding = AES.block_size - len(s) % AES.block_size
-    return s + padding*chr(padding)
+    return s + bytes([padding]*padding)
 def unpad(s):
     padding = s[-1]
     assert isinstance(padding, int)
@@ -53,7 +53,7 @@ class Session():
         iv = store_crypt[:AES.block_size]
         cipher = AES.new(STORE_KEY, AES.MODE_CBC, iv)
         store_json = unpad(cipher.decrypt(store_crypt[AES.block_size:]))
-        store = json.loads(store_json)
+        store = json.loads(store_json.decode('utf-8'))
         if store['username'] != user_check:
             self.sid = None
             return
@@ -64,7 +64,7 @@ class Session():
 
     def save_store(self):
         assert self.sid is not None
-        store_pad = pad(json.dumps(self._store))
+        store_pad = pad(json.dumps(self._store).encode('utf-8'))
         iv = Random.new().read(AES.block_size)
         cipher = AES.new(STORE_KEY, AES.MODE_CBC, iv)
         os.environ[self.sid] = base64.b64encode(iv + cipher.encrypt(store_pad)).decode('utf-8')
