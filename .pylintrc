@@ -1,0 +1,5 @@
+[MESSAGES CONTROL]
+disable=R,C
+
+[LOGGING]
+logging-format-style=fstr
