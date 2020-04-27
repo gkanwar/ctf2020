@@ -9,8 +9,9 @@ MESSAGE_EXT = '.data'
 
 def save_message(message):
     token = ''.join(random.choices(string.ascii_letters, k=12))
-    fname = MESSAGE_DIR + 'post' + str(message.timestamp) + token + MESSAGE_EXT
-    json.dump(message, fname)
+    fname = MESSAGE_DIR + 'post' + str(message['timestamp']) + token + MESSAGE_EXT
+    with open(fname, 'w') as fd:
+        json.dump(message, fd)
     return token
 
 ### INTERNAL NOTE: collision with username files
@@ -27,10 +28,8 @@ def _load_messages():
         
 def list_broadcasted():
     all_messages = _load_messages()
-    return [m for m in all_messages
-            if 'recipients' in m and m['recipients'] is None]
+    return [m for m in all_messages if m.get('recipients') is None]
 
 def list_received(username):
     all_messages = _load_messages()
-    return [m for m in all_messages
-            if 'recipients' in m and username in m['recipients']]
+    return [m for m in all_messages if username in m.get('recipients', [])]

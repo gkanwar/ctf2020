@@ -45,14 +45,19 @@ def parse_form_data_chunk(chunk):
             name, value = line.split(': ', 1)
             headers[name] = value
         if not 'Content-Disposition' in headers:
-            logger.error('No Content-Disposition for form data')
+            logger.warning('No Content-Disposition for form data')
             return {}
         disp = headers['Content-Disposition']
         bits = disp.split('; ')
         if len(bits) < 2 or bits[0] != 'form-data':
-            logger.error('Bad Content-Disposition for form data')
+            logger.warning('Bad Content-Disposition for form data')
             return {}
         form_info = bits[1]
+        is_binary = False
+        if len(bits) >= 3:
+            if not bits[2].startswith('filename'):
+                logger.warning('Bad Content-Disposition for form data')
+            is_binary = True
         if not '=' in form_info:
             logger.error('Bad Content-Disposition for form data')
             return {}
@@ -62,7 +67,10 @@ def parse_form_data_chunk(chunk):
             return {}
         form_name = value[1:-1]
         # assume text form value
-        form_value = form_value.decode('utf-8').strip()
+        if not is_binary:
+            form_value = form_value.decode('utf-8').strip()
+        else:
+            form_value = form_value[:-2] # strip \r\n
         return {form_name: form_value}
     except Exception as e:
         logger.error(f'Parsing form data failed with error {e}, skipping')

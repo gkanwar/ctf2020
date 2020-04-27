@@ -1,3 +1,4 @@
+import json
 import time
 from auth import check_username, check_login, register_user
 from log import logger
@@ -41,21 +42,24 @@ def _post_api(path, query, session, *, send_json, send_error):
         try:
             message = json.loads(query['message'])
         except:
+            logger.warning('Message load threw a JSON err', exc_info=True)
             return send_json({'error': 'Bad message format'})
-        message_keys = ['recipients', 'encrypted', 'message']
+        message_keys = ['encrypted', 'message']
         if not set(message_keys) <= set(message):
             return send_json({'error': 'Bad message format'})
         message = {k: message[k] for k in message_keys}
-        if not isinstance(message['recipients'], list):
-            return send_json({'error': 'Bad message format'})
-        rs = message['recipients']
-        for r in rs:
-            if not check_username(r):
+        rs = message.get('recipients')
+        if rs is not None:
+            if not isinstance(rs, list):
                 return send_json({'error': 'Bad message format'})
+            for r in rs:
+                if not check_username(r):
+                    return send_json({'error': 'Bad message format'})
         message['encrypted'] = bool(message['encrypted'])
         message['author'] = session.get('username')
         message['timestamp'] = time.time()
         token = save_message(message)
+        return send_json({'ok': 'Message published'})
     elif path == '/set_status':
         if 'status' not in query:
             return send_json({'error': 'No status'})

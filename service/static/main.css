@@ -122,8 +122,9 @@ body {
     border: 1px solid var(--beige);
 }
 
-.account-box.footer {
-    
+#content-panel .button {
+    height: 25px;
+    display: inline-block;
 }
 
 .rsakey {
