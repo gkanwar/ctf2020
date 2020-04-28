@@ -1,0 +1,25 @@
+# Run with sudo openvpn --config <this file>
+
+client
+dev tun
+proto udp
+remote <public openvpn server ip> 1194
+resolv-retry infinite
+nobind
+persist-key
+persist-tun
+
+<ca>
+CA_GOES_HERE
+</ca>
+<cert>
+CERT_GOES_HERE
+</cert>
+<key>
+KEY_GOES_HERE
+</key>
+
+remote-cert-tls server
+
+cipher AES-256-CBC
+verb 3
