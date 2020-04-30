@@ -1,4 +1,4 @@
-FROM python:3
+FROM python:3.7.7
 WORKDIR /app
 ADD requirements.txt /app
 RUN set -ex && \
