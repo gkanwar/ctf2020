@@ -11,8 +11,10 @@ fi
 
 cd team_confs
 for t in $(seq 1 ${NUM_TEAMS}); do
-    for i in $(seq 1 ${NUM_MEMBERS}); do
-	echo "team${t}_${i}.conf";
-    done | tar cvzf team${t}.tgz -T -
-    # TODO: password file?
+    (
+	echo "team${t}_password.txt"
+	for i in $(seq 1 ${NUM_MEMBERS}); do
+	    echo "team${t}_${i}.conf"
+	done
+    ) | tar cvzf team${t}.tgz -T -
 done
