@@ -382,6 +382,36 @@ function updateAccountPanel(loggedIn, username) {
   }
 }
 
+function eventuallyDecryptMessage(message, td) {
+  if (rsaKey === undefined) {
+    console.log('No RSA key yet, delaying decryption');
+    setTimeout(() => eventuallyDecryptMessage(message, td), 1000);
+    return;
+  }
+  // TODO: multiple keys?
+  const encryptedKey = message.slice(0, 128);
+  const iv = message.slice(128, 128+16);
+  message = message.slice(128+16, message.length);
+  const key = rsaDecrypt(rsaKey, encryptedKey).slice(0, 16);
+  const aesCbc = new aesjs.ModeOfOperation.cbc(key, iv);
+  message = unpadBytes(aesCbc.decrypt(message));
+  td.text(aesjs.utils.utf8.fromBytes(message));
+}
+
+function renderMessageTd(hexMsg, isEncrypted) {
+  let message = aesjs.utils.hex.toBytes(hexMsg);
+  const td = $('<td>');
+  if (isEncrypted) {
+    setTimeout(() => eventuallyDecryptMessage(message, td), 500);
+    td.text('Loading...');
+  }
+  else {
+    const outMessage = aesjs.utils.utf8.fromBytes(message);
+    td.text(outMessage);
+  }
+  return td;
+}
+
 function renderTable(objects, keys, prettyKeys) {
   const table = $('<table>');
   const thead = $('<thead>');
@@ -392,24 +422,22 @@ function renderTable(objects, keys, prettyKeys) {
   thead.append(theadRow);
   table.append(thead);
   const tbody = $('<tbody>');
+  console.log(objects);
   objects.forEach((obj) => {
+    console.log('obj', obj);
     if (obj.message === undefined) {
       return;
     }
-    let message = aesjs.utils.hex.toBytes(obj.message);
-    if (obj.encrypted) {
-      // TODO: multiple keys?
-      const encryptedKey = message.slice(0, 128);
-      const iv = message.slice(128, 128+16);
-      message = message.slice(128+16, message.length);
-      const key = rsaDecrypt(rsaKey, encryptedKey).slice(0, 16);
-      const aesCbc = new aesjs.ModeOfOperation.cbc(key, iv);
-      message = unpadBytes(aesCbc.decrypt(message));
-    }
-    obj.message = aesjs.utils.utf8.fromBytes(message);
+    // let message = aesjs.utils.hex.toBytes(obj.message);
+    // obj.message = aesjs.utils.utf8.fromBytes(message);
     const tbodyRow = $('<tr>');
     keys.forEach((key, i) => {
-      tbodyRow.append($('<td>').text(obj[key]));
+      if (key === 'message') {
+        tbodyRow.append(renderMessageTd(obj[key], obj.encrypted));
+      }
+      else {
+        tbodyRow.append($('<td>').text(obj[key]));
+      }
     });
     tbody.append(tbodyRow);
   });
@@ -423,7 +451,13 @@ function renderMessages(container) {
   const reqMessages = $.get('/messages');
   $.when(reqBroadcast, reqMessages)
     .done(function([{ok: data1}], [{ok: data2}]) {
-      const allMsg = data1.concat(data2);
+      let allMsg = [];
+      if (data1 !== undefined) {
+        allMsg = allMsg.concat(data1);
+      }
+      if (data2 !== undefined) {
+        allMsg = allMsg.concat(data2);
+      }
       allMsg.sort((a,b) => (b.timestamp - a.timestamp));
       container.empty();
       container.append($('<h3>').text('Latest messages'));
