@@ -1,0 +1,39 @@
+port 1194
+proto udp
+dev tun
+<ca>
+{0}
+</ca>
+<cert>
+{1}
+</cert>
+<key>
+{2}
+</key>
+<dh>
+{3}
+</dh>
+
+mode server
+tls-server
+topology subnet
+# blow up the macro to fine tune
+ifconfig 10.10.{4}.3 255.255.255.0
+ifconfig-pool 10.10.{4}.4 10.10.{4}.255
+# route 10.10.{4}.0 255.255.255.0
+
+# server ip and peer(?)
+# ifconfig {4} ...
+# route all 10.10.0.0/16 traffic into vpn
+push "route 10.10.0.0 255.255.0.0"
+# static IP assignments
+# client-config-dir /etc/openvpn/ccd
+
+keepalive 10 120
+cipher AES-256-CBC
+persist-key
+persist-tun
+status openvpn-status.log
+log-append  /var/log/openvpn.log
+verb 4
+explicit-exit-notify 1
