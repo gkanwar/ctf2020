@@ -135,3 +135,7 @@ body {
     color: var(--gray);
     padding: 10px;
 }
+#content-panel table td.info {
+    font-family: monospace;
+    color: #ff0000;
+}

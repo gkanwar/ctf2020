@@ -38,10 +38,13 @@ function loadKeys(username) {
     });
 }
 
+function isLoggedIn() {
+  return (!!Cookies.get('session_id')) && (!!Cookies.get('username'));
+}
+
 function initState() {
-  const loggedIn = (!!Cookies.get('session_id')) && (!!Cookies.get('username'));
   const username = Cookies.get('username');
-  if (loggedIn) {
+  if (isLoggedIn()) {
     loadKeys(username);
   }
 }
@@ -116,6 +119,7 @@ function register(event) {
     }
     else {
       showInfoToast('Register success');
+      loadKeys(Cookies.get('username'));
       updateDisplay();
     }
   }).fail(function(jqxhr) {
@@ -200,9 +204,13 @@ function rsaDecrypt(privKey, crypt) {
 
 function postMessage(event) {
   event.preventDefault();
+  if (!isLoggedIn()) {
+    showErrorToast('You must login to post a message');
+    return;
+  }
   if (rsaKey === undefined) {
     const retryTimeLeft = (keyRetryTimer - Date.now()) / 1000;
-    showErrorToast('Your keys are not loaded, wait for retry (${retryTimeLeft} s)');
+    showErrorToast(`Your keys are not loaded, wait for retry (${retryTimeLeft} s)`);
     return;
   }
   const formData = new FormData(event.target);
@@ -248,6 +256,7 @@ function postMessage(event) {
     else {
       showInfoToast('Message published');
       // TODO: update display?
+      updateDisplay();
     }
   }).fail(function(jqxhr) {
     showErrorToast(`${jqxhr.statusText}`);
@@ -324,7 +333,7 @@ function initMainPanel(panel) {
 }
 
 function updateDisplay() {
-  const loggedIn = (!!Cookies.get('session_id')) && (!!Cookies.get('username'));
+  const loggedIn = isLoggedIn();
   const username = Cookies.get('username');
   updateAccountPanel(loggedIn, username);
   updateMainPanel(loggedIn, username);
@@ -395,19 +404,24 @@ function eventuallyDecryptMessage(message, td) {
   const key = rsaDecrypt(rsaKey, encryptedKey).slice(0, 16);
   const aesCbc = new aesjs.ModeOfOperation.cbc(key, iv);
   message = unpadBytes(aesCbc.decrypt(message));
-  td.text(aesjs.utils.utf8.fromBytes(message));
+  td.text(aesjs.utils.utf8.fromBytes(message)).removeClass('info');
 }
 
 function renderMessageTd(hexMsg, isEncrypted) {
   let message = aesjs.utils.hex.toBytes(hexMsg);
   const td = $('<td>');
   if (isEncrypted) {
-    setTimeout(() => eventuallyDecryptMessage(message, td), 500);
-    td.text('Loading...');
+    if (isLoggedIn()) {
+      setTimeout(() => eventuallyDecryptMessage(message, td), 500);
+      td.text('Loading...').addClass('info');
+    }
+    else {
+      td.text('Login to decrypt...').addClass('info');
+    }
   }
   else {
     const outMessage = aesjs.utils.utf8.fromBytes(message);
-    td.text(outMessage);
+    td.text(outMessage).removeClass('info');
   }
   return td;
 }
@@ -422,9 +436,7 @@ function renderTable(objects, keys, prettyKeys) {
   thead.append(theadRow);
   table.append(thead);
   const tbody = $('<tbody>');
-  console.log(objects);
   objects.forEach((obj) => {
-    console.log('obj', obj);
     if (obj.message === undefined) {
       return;
     }
@@ -480,7 +492,9 @@ function renderFeed(container) {
   writeForm.append($('<label>', {for: 'message_encrypt'}).text('Make private'));
   writeForm.append($('<input>', {class: 'button', type: 'submit', value: 'Publish'}));
   writeContainer.append(writeForm);
-  container.append(writeContainer);
+  if (isLoggedIn()) {
+    container.append(writeContainer);
+  }
   const messageContainer = $('<div>');
   renderMessages(messageContainer);
   container.append(messageContainer);
