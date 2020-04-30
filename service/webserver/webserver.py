@@ -154,6 +154,10 @@ class Webhandler(socketserver.StreamRequestHandler):
             content_type = 'text/html'
         elif fname.endswith('.jpg'):
             content_type = 'image/jpeg'
+        elif fname.endswith('.png'):
+            content_type = 'image/png'
+        elif fname.endswith('.ico'):
+            content_type = 'image/x-icon'
         if content_type.startswith('text/plain'):
             with open(fname, 'r') as f:
                 content = f.read()
@@ -282,7 +286,7 @@ class NonblockingWebserver(socketserver.ThreadingMixIn, socketserver.TCPServer):
     daemon_threads = True
 
 if __name__ == '__main__':
-    HOST = 'localhost'
+    HOST = '0.0.0.0'
     PORT = int(sys.argv[1])
     with NonblockingWebserver((HOST, PORT), Webhandler) as server:
         logger.info(f'Server bound to localhost:{PORT}')

@@ -1,0 +1,19 @@
+version: '3.3'
+
+services:
+  deep_thoughts:
+    build: webserver
+    image: deep_thoughts
+    restart: on-failure
+    ports:
+      - 80:7777
+    volumes:
+      - ./private:/app/private
+  deep_thoughts_monitor:
+    build: monitor
+    image: deep_thoughts_monitor
+    restart: on-failure
+    ports:
+      - 7778:7778
+    depends_on:
+      - "deep_thoughts"
