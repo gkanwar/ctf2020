@@ -4,12 +4,19 @@ if [[ "$NUM_TEAMS" == "" ]]; then
     echo "Must set NUM_TEAMS"
     exit 1
 fi
+if [[ "$NOP_ID" == "" ]]; then
+    echo "Must set NOP_ID"
+    exit 1
+fi
+
+TEAMS="${NOP_ID} $(seq 1 ${NUM_TEAMS})"
 
 cd ${HOME}/ctf2020 && python3 build_service.py
 
 read -ra ips <<< "${VULNBOX_IPS}"
-for t in $(seq 0 ${NUM_TEAMS}); do
-    ip=${ips[t]}
+i=0
+for t in ${TEAMS}; do
+    ip=${ips[i++]}
     if [[ "${ip}" == "" ]]; then
 	echo "IP unset for team ${t}, skipping service push"
 	continue

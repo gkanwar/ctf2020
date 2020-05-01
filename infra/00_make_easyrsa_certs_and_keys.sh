@@ -20,10 +20,16 @@ if [[ "$NUM_MEMBERS" == "" ]]; then
     echo "Must set NUM_MEMBERS"
     exit 1
 fi
+if [[ "$NOP_ID" == "" ]]; then
+    echo "Must set NOP_ID"
+    exit 1
+fi
+
+TEAMS="${NOP_ID} $(seq 1 ${NUM_TEAMS})"
 
 # Generate requests
 sudo ./easyrsa --batch --req-cn=server gen-req server nopass
-for t in $(seq 0 ${NUM_TEAMS}); do
+for t in ${TEAMS}; do
     sudo ./easyrsa --batch --req-cn=team${t} gen-req team${t} nopass
     sudo ./easyrsa --batch --req-cn=team${t} gen-req team${t}_server nopass
     for i in $(seq 1 ${NUM_MEMBERS}); do
@@ -33,7 +39,7 @@ done
 
 # Sign requests
 sudo ./easyrsa --batch sign-req server server
-for t in $(seq 0 ${NUM_TEAMS}); do
+for t in ${TEAMS}; do
     sudo ./easyrsa --batch sign-req client team${t}
     sudo ./easyrsa --batch sign-req server team${t}_server
     for i in $(seq 1 ${NUM_MEMBERS}); do
