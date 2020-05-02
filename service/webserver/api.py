@@ -43,6 +43,7 @@ def _post_api(path, query, session, *, send_json, send_error):
             message = json.loads(query['message'])
         except:
             logger.warning('Message load threw a JSON err', exc_info=True)
+            logger.info('Message was: {query["message"]}')
             return send_json({'error': 'Bad message format'})
         message_keys = ['encrypted', 'message']
         if not set(message_keys) <= set(message):
