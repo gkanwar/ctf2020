@@ -1,5 +1,5 @@
 ### Monitor which sessions are active. Query via
-### nc localhost PORT < /dev/null
+### nc MYIP PORT < /dev/null
 
 import logging
 import sys
@@ -10,8 +10,9 @@ logger = logging.getLogger('monitor')
 from monitor_internal import run_monitor
 
 if __name__ == '__main__':
-    host = 'localhost'
+    host = '0.0.0.0'
     port = int(sys.argv[1])
-    web_port = int(sys.argv[2])
-    logger.info(f'Running on port {port} and connecting to webserver on {web_port}')
-    run_monitor(host, port, web_port)
+    web_host = sys.argv[2]
+    web_port = int(sys.argv[3])
+    logger.info(f'Running on port {port} and connecting to webserver on {web_host}:{web_port}')
+    run_monitor(host, port, web_host, web_port)

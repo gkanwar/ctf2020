@@ -6,4 +6,4 @@ RUN set -ex && \
 ADD . /app
 
 USER www-data
-CMD python3 monitor.py 7778 7777
+CMD python3 monitor.py 7778 deep_thoughts_webserver 7777

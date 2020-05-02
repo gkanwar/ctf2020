@@ -10,10 +10,17 @@ from http.client import HTTPConnection
 HTTPConnection._encode_request = lambda self, r: r.encode('utf-8')
 
 class MonitorHandler(socketserver.StreamRequestHandler):
+    WEB_HOST = None
     WEB_PORT = None
     def handle(self):
         logger.info(f'Monitor request from {self.client_address[0]}:{self.client_address[1]}')
-        r = urllib.request.urlopen(f'http://localhost:{MonitorHandler.WEB_PORT}/🙃', timeout=1)
+        try:
+            r = urllib.request.urlopen(
+                f'http://{MonitorHandler.WEB_HOST}:{MonitorHandler.WEB_PORT}/🙃', timeout=1)
+        except urllib.error.URLError as e:
+            logger.error(f'Connection error to webserver', exc_info=True)
+            self.wfile.write(b'Internal error!\n')
+            return
         if r.status != 200:
             self.wfile.write(b'Internal error!\n')
             return
@@ -34,7 +41,8 @@ class NonblockingServer(socketserver.ThreadingMixIn, socketserver.TCPServer):
     allow_reuse_address = True
     daemon_threads = True
 
-def run_monitor(host, port, web_port):
+def run_monitor(host, port, web_host, web_port):
+    MonitorHandler.WEB_HOST = web_host
     MonitorHandler.WEB_PORT = web_port
     with NonblockingServer((host, port), MonitorHandler) as server:
         server.serve_forever()

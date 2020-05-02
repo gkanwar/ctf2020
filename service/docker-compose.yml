@@ -1,8 +1,9 @@
 version: '3.3'
 
 services:
-  deep_thoughts:
+  deep_thoughts_webserver:
     build: webserver
+    container_name: deep_thoughts_webserver
     image: deep_thoughts
     restart: on-failure
     ports:
@@ -11,9 +12,10 @@ services:
       - ./private:/app/private
   deep_thoughts_monitor:
     build: monitor
+    container_name: deep_thoughts_monitor
     image: deep_thoughts_monitor
     restart: on-failure
     ports:
       - 7778:7778
     depends_on:
-      - "deep_thoughts"
+      - "deep_thoughts_webserver"
