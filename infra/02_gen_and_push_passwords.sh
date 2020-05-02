@@ -23,4 +23,5 @@ for t in ${TEAMS}; do
     echo "hacker:${password}" > team_confs/team${t}_password.txt
     scp team_confs/team${t}_password.txt ec2-user@${ip}:password.txt
     ssh ec2-user@${ip} './setup_users.sh'
+    ssh ec2-user@${ip} "echo ${t} > team_id.txt"
 done
