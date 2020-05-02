@@ -1,9 +1,9 @@
 import json
 import time
-from auth import check_username, check_login, register_user
+from auth import check_username, check_user_exists, check_login, register_user
 from log import logger
 from user import list_users, User
-from message import encrypt_message, save_message, list_broadcasted, list_received
+from message import encrypt_message, save_message, list_broadcasted, list_received_or_sent
 
 def post_api(*args, send_error, **kwargs):
     try:
@@ -47,18 +47,22 @@ def _post_api(path, query, session, *, send_json, send_error):
         message_keys = ['encrypted', 'message']
         if not set(message_keys) <= set(message):
             return send_json({'error': 'Bad message format'})
+        rs = message.get('recipients', [])
+        print('rs =', rs)
+        if not isinstance(rs, list):
+            return send_json({'error': 'Bad message format'})
+        if len(rs) > 2:
+            return send_json({'error': 'Too many recipients'})
+        for r in rs:
+            if not check_username(r):
+                return send_json({'error': 'Bad recipient username'})
+            if not check_user_exists(r):
+                return send_json({'error': f'User {r} does not exist'})
         message = {k: message[k] for k in message_keys}
-        rs = message.get('recipients')
-        if rs is not None:
-            if not isinstance(rs, list):
-                return send_json({'error': 'Bad message format'})
-            for r in rs:
-                if not check_username(r):
-                    return send_json({'error': 'Bad message format'})
+        message['recipients'] = rs
         if message['encrypted']:
-            # TODO: Recipients
             message_bytes = bytes.fromhex(message['message'])
-            message_bytes = encrypt_message(message_bytes, author=session.user)
+            message_bytes = encrypt_message(message_bytes, author=session.user, recipients=rs)
             message['message'] = message_bytes.hex()
         message['encrypted'] = bool(message['encrypted'])
         message['author'] = session.get('username')
@@ -122,6 +126,6 @@ def _get_api(path, query, session, *, send_json, send_error):
     elif path == '/messages':
         if not session:
             return send_json({'error': 'Not logged in'})
-        return send_json({'ok': list_received(session.get('username'))})
+        return send_json({'ok': list_received_or_sent(session.get('username'))})
     else:
         return send_error(404, 'Not Found')

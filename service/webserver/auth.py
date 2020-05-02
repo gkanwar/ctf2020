@@ -9,6 +9,8 @@ AUTH_USER_REGEX = r'^[a-zA-Z0-9]{4,32}$'
 
 def check_username(username):
     return bool(re.match(AUTH_USER_REGEX, username))
+def check_user_exists(username):
+    return check_username(username) and os.path.isfile(AUTH_DIR + username)
 
 def check_login(username, password):
     if not check_username(username):

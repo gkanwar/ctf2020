@@ -193,12 +193,13 @@ function expMod(base, exp, mod) {
 // }
 function rsaDecrypt(privKey, crypt) {
   const mp = BigInt('0x' + aesjs.utils.hex.fromBytes(crypt));
+  console.log('mp =', mp);
   const n = BigInt('0x' + privKey.n);
   const d = BigInt('0x' + privKey.d);
+  console.log('n =', n);
+  console.log('d =', d);
   let out = expMod(mp, d, n).toString(16);
-  if (out.length % 2 != 0) {
-    out = '0' + out;
-  }
+  out = '0'.repeat(256 - out.length) + out;
   return aesjs.utils.hex.toBytes(out);
 }
 
@@ -217,30 +218,26 @@ function postMessage(event) {
   const message = formData.get('message');
   let messageBytes = aesjs.utils.utf8.toBytes(message);
   const encrypted = !!(formData.get('encrypt'));
-  // if (encrypted) {
-  //   const key = randomBytes(16);
-  //   const iv = randomBytes(16);
-  //   messageBytes = padBytes(messageBytes);
-  //   const aesCbc = new aesjs.ModeOfOperation.cbc(key, iv);
-  //   messageBytes = aesCbc.encrypt(messageBytes);
-  //   const keyExt = [].concat(...Array.from({length: 8}, () => key));
-  //   const encryptedKey = rsaEncrypt(rsaKey, keyExt);
-  //   if (encryptedKey.length > 128) {
-  //     throw Error(`Unexpected key length ${encryptedKey.length}`);
-  //   }
-  //   const encryptedKeyPad = new Uint8Array(128);
-  //   encryptedKeyPad.fill(0, 0, 128-encryptedKey.length);
-  //   encryptedKeyPad.set(encryptedKey, 128-encryptedKey.length);
-  //   const combinedMessage = new Uint8Array(128 + 16 + messageBytes.length);
-  //   combinedMessage.set(encryptedKeyPad);
-  //   combinedMessage.set(iv, 128);
-  //   combinedMessage.set(messageBytes, 128+16);
-  //   messageBytes = combinedMessage;
-  // }
-  formData.set('message', JSON.stringify({
+  formData.delete('encrypt');
+  const recipients = [];
+  if (formData.get('share_1') !== undefined &&
+      formData.get('share_1') !== '') {
+    recipients.push(formData.get('share_1'));
+  }
+  formData.delete('share_1');
+  if (formData.get('share_2') !== undefined &&
+      formData.get('share_2') !== '') {
+    recipients.push(formData.get('share_2'));
+  }
+  formData.delete('share_2');
+  const messageObj = {
     'encrypted': encrypted,
     'message': aesjs.utils.hex.fromBytes(messageBytes)
-  }));
+  };
+  if (recipients.length > 0) {
+    messageObj['recipients'] = recipients;
+  }
+  formData.set('message', JSON.stringify(messageObj));
   $.ajax('/post_message', {
     method: 'POST',
     processData: false,
@@ -391,28 +388,41 @@ function updateAccountPanel(loggedIn, username) {
   }
 }
 
-function eventuallyDecryptMessage(message, td) {
+function eventuallyDecryptMessage(message, numRecipients, td) {
   if (rsaKey === undefined) {
     console.log('No RSA key yet, delaying decryption');
     setTimeout(() => eventuallyDecryptMessage(message, td), 1000);
     return;
   }
-  // TODO: multiple keys?
-  const encryptedKey = message.slice(0, 128);
-  const iv = message.slice(128, 128+16);
-  message = message.slice(128+16, message.length);
-  const key = rsaDecrypt(rsaKey, encryptedKey).slice(0, 16);
-  const aesCbc = new aesjs.ModeOfOperation.cbc(key, iv);
-  message = unpadBytes(aesCbc.decrypt(message));
-  td.text(aesjs.utils.utf8.fromBytes(message)).removeClass('info');
+  const numKeys = numRecipients + 1; // one for author
+  const iv = message.slice(128*numKeys, 128*numKeys+16);
+  const encrypted = message.slice(128*numKeys + 16, message.length);
+  for (const i of Array(numKeys).keys()) {
+    console.log(`Try ${i}`);
+    const encryptedKey = message.slice(128*i, 128*(i+1));
+    console.log('Enc key =', aesjs.utils.hex.fromBytes(encryptedKey));
+    const keyPad = rsaDecrypt(rsaKey, encryptedKey);
+    console.log('key pad whole', aesjs.utils.hex.fromBytes(keyPad));
+    console.log(aesjs.utils.hex.fromBytes(keyPad.slice(32, 48)),
+                aesjs.utils.hex.fromBytes(keyPad.slice(48, 64)));
+    if (aesjs.utils.hex.fromBytes(keyPad.slice(32, 48)) ==
+        aesjs.utils.hex.fromBytes(keyPad.slice(48, 64))
+        || i === numKeys-1) {
+      const key = keyPad.slice(32, 48);
+      const aesCbc = new aesjs.ModeOfOperation.cbc(key, iv);
+      message = unpadBytes(aesCbc.decrypt(encrypted));
+      td.text(aesjs.utils.utf8.fromBytes(message)).removeClass('info');
+      return;
+    }
+  }
 }
 
-function renderMessageTd(hexMsg, isEncrypted) {
+function renderMessageTd(hexMsg, isEncrypted, numRecipients) {
   let message = aesjs.utils.hex.toBytes(hexMsg);
   const td = $('<td>');
   if (isEncrypted) {
     if (isLoggedIn()) {
-      setTimeout(() => eventuallyDecryptMessage(message, td), 500);
+      setTimeout(() => eventuallyDecryptMessage(message, numRecipients, td), 500);
       td.text('Loading...').addClass('info');
     }
     else {
@@ -445,7 +455,12 @@ function renderTable(objects, keys, prettyKeys) {
     const tbodyRow = $('<tr>');
     keys.forEach((key, i) => {
       if (key === 'message') {
-        tbodyRow.append(renderMessageTd(obj[key], obj.encrypted));
+        if (obj.recipients !== undefined) {
+          tbodyRow.append(renderMessageTd(obj[key], obj.encrypted, obj.recipients.length));
+        }
+        else {
+          tbodyRow.append(renderMessageTd(obj[key], obj.encrypted, 0));
+        }
       }
       else if (key === 'timestamp') {
         const date = new Date(obj[key]*1000);
@@ -474,6 +489,7 @@ function renderMessages(container) {
       if (data2 !== undefined) {
         allMsg = allMsg.concat(data2);
       }
+      allMsg = allMsg.filter(msg => (msg.timestamp !== undefined));
       allMsg.sort((a,b) => (b.timestamp - a.timestamp));
       container.empty();
       container.append($('<h3>').text('Latest messages'));
@@ -490,8 +506,14 @@ function renderMessages(container) {
 function renderFeed(container) {
   const writeContainer = $('<div>');
   const writeForm = $('<form>', {class: 'message_form'}).submit(postMessage);
-  writeForm.append($('<label>', {class: 'textarea_header', for: 'message_field'})
-                   .text('Enter your Deep Thought'));
+  const writeFormHeader = $('<div>', {class: 'textarea_header'});
+  writeFormHeader.append($('<label>', {for: 'message_field'}).html('<h3>Enter your Deep Thought</h3>'));
+  const writeFormHeaderShare = $('<div>', {class: 'share_with hidden'});
+  writeFormHeaderShare.append($('<label>').text('Share with:'));
+  writeFormHeaderShare.append($('<input>', {id: 'message_share_1', type: 'text', name: 'share_1'}));
+  writeFormHeaderShare.append($('<input>', {id: 'message_share_2', type: 'text', name: 'share_2'}));
+  writeFormHeader.append(writeFormHeaderShare);
+  writeForm.append(writeFormHeader);
   writeForm.append($('<textarea>', {id: 'message_field', name: 'message'}));
   const writeFormFiddlyBits = $('<div>', {class: 'fiddly_bits'});
   writeFormFiddlyBits.append(
@@ -500,7 +522,16 @@ function renderFeed(container) {
             + 'and public key technology. Of course they are visible so fans know '
             + 'you had a Deep Thought!'));
   const writeFormFiddlyBitsGroup = $('<span>', {class: 'fiddly_bits_group'});
-  writeFormFiddlyBitsGroup.append($('<input>', {id: 'message_encrypt', type: 'checkbox', name: 'encrypt'}));
+  writeFormFiddlyBitsGroup.append(
+    $('<input>', {id: 'message_encrypt', type: 'checkbox', name: 'encrypt'})
+      .change(function() {
+        if ($(this).is(':checked')) {
+          writeFormHeaderShare.removeClass('hidden');
+        }
+        else {
+          writeFormHeaderShare.addClass('hidden');
+        }
+      }));
   writeFormFiddlyBitsGroup.append($('<label>', {for: 'message_encrypt'}).text('Make private'));
   writeFormFiddlyBitsGroup.append($('<input>', {class: 'button', type: 'submit', value: 'Publish'}));
   writeFormFiddlyBits.append(writeFormFiddlyBitsGroup);

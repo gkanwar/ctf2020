@@ -57,6 +57,7 @@ body {
     flex-grow: 1;
     padding: 20px 100px 0px 100px;
     overflow-wrap: break-word;
+    overflow-y: auto;
 }
 
 #account-panel .title-block {
@@ -140,8 +141,12 @@ body {
     color: #ff0000;
 }
 
-form.message_form label.textarea_header {
-    display: block;
+form.message_form .textarea_header {
+    width: 650px;
+    padding-bottom: 10px;
+}
+form.message_form .textarea_header h3 {
+    display: inline-block;
 }
 form.message_form textarea {
     width: 650px;
@@ -177,4 +182,16 @@ form.message_form .fiddly_bits_group > label {
 }
 form.message_form .fiddly_bits_group > input[type=submit] {
     width: 70px;
+}
+form.message_form .share_with {
+    float: right;
+    margin-top: 20px;
+}
+form.message_form .share_with > input[type=text] {
+    width: 100px;
+    margin-left: 5px;
+}
+
+.hidden {
+    display: none;
 }
