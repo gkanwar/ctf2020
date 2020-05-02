@@ -34,6 +34,25 @@ def make_sentence():
     else: # one-word post
         return random.choice(one_word_tokens)
 
+def decrypt_message(message, n_key, d, n, *, logger):
+    encrypted = bytes.fromhex(message.get('message', ''))
+    iv = encrypted[128*n_key:128*n_key+16]
+    encrypted_message = encrypted[128*n_key+16:]
+    for i in range(n_key):
+        logger.info(f'Attempt {i} to decrypt AES key')
+        encrypted_key = encrypted[128*i:128*(i+1)]
+        m = int.from_bytes(encrypted_key, byteorder='big')
+        aes_key_pad = pow(m, d, n).to_bytes(128, byteorder='big')
+        if aes_key_pad[:32] != b'\x00'*32 or aes_key_pad[32:48] != aes_key_pad[48:64]:
+            logger.info(f'Failed to decrypt AES key, got {aes_key_pad.hex()}')
+            continue
+        aes_key = aes_key_pad[32:48]
+        cipher = AES.new(aes_key, AES.MODE_CBC, iv)
+        return OK, unpad(cipher.decrypt(encrypted_message))
+    logger.error(f'Failed all {n_key} attempts to decrypt')
+    return NOTWORKING, None
+
+
 
 ### Abstract class implementing a few utility methods
 class WebChecker(BaseChecker):
@@ -62,10 +81,12 @@ class WebChecker(BaseChecker):
     def get(self, s, path, *, timeout=10):
         return self.req(s, 'get', path, data=None, timeout=timeout)
 
-    def make_ident(self, ident_tag, tick):
+    def make_ident(self, ident_tag, tick, tag=None):
+        if tag is not None:
+            ident_tag = ident_tag + '_' + tag
         return f'{ident_tag}_{self._checker_tag}_{self._service}_{self._team}_{tick}'
-    def get_or_create_user(self, tick, *, create=True):
-        ident = self.make_ident('creds', tick)
+    def get_or_create_user(self, tick, *, tag=None, create=True):
+        ident = self.make_ident('creds', tick, tag=tag)
         blob = self.retrieve_blob(ident)
         if blob is not None:
             return OK, pickle.loads(blob)
@@ -81,6 +102,15 @@ class WebChecker(BaseChecker):
         blob = pickle.dumps(creds)
         self.store_blob(ident, blob)
         return OK, creds
+
+    def get_priv_key(self, s):
+        status, r = self.get(s, '/priv_key')
+        if status != OK: return status, None
+        priv_key = r['ok']
+        if 'd' not in priv_key or 'n' not in priv_key:
+            return NOTWORKING, None
+        d, n = int(priv_key['d'], 16), int(priv_key['n'], 16)
+        return OK, (d,n)
 
 
 class StatusChecker(WebChecker):
@@ -176,12 +206,8 @@ class MessageChecker(WebChecker):
         handshake = random.choices(string.ascii_lowercase + string.digits, k=10)
         status, _ = self.post(s, '/login', data={**creds, 'handshake': handshake})
         if status != OK: return status
-        status, r = self.get(s, '/priv_key')
+        status, (d,n) = self.get_priv_key(s)
         if status != OK: return status
-        priv_key = r['ok']
-        if 'd' not in priv_key or 'n' not in priv_key:
-            return NOTWORKING
-        d, n = int(priv_key['d'], 16), int(priv_key['n'], 16)
         status, r = self.get(s, '/broadcast_messages')
         if status != OK: return status
         messages = r['ok']
@@ -195,18 +221,9 @@ class MessageChecker(WebChecker):
             return NOTWORKING
         if not flag_message.get('encrypted', False):
             return NOTWORKING
-        encrypted = bytes.fromhex(flag_message.get('message', ''))
-        encrypted_key = encrypted[:128]
-        iv = encrypted[128:128+16]
-        encrypted_message = encrypted[128+16:]
-        m = int.from_bytes(encrypted_key, byteorder='big')
-        aes_key_pad = pow(m, d, n).to_bytes(128, byteorder='big')
-        if aes_key_pad[:32] != b'\x00'*32:
-            self.logger.error(f'Failed to decrypt AES key, got {aes_key_pad.hex()}')
-            return NOTWORKING
-        aes_key = aes_key_pad[32:48]
-        cipher = AES.new(aes_key, AES.MODE_CBC, iv)
-        flag_check = unpad(cipher.decrypt(encrypted_message)).decode('utf-8')
+        status, flag_check = decrypt_message(flag_message, 1, d, n, logger=self.logger)
+        if status != OK: return status
+        flag_check = flag_check.decode('utf-8')
         if self.get_flag(tick) != flag_check:
             self.logger.error(f'Failed to decrypt flag, got {flag_check} vs {self.get_flag(tick)}')
             return NOTWORKING
@@ -246,4 +263,146 @@ class MessageChecker(WebChecker):
             self.logger.error(f'Message did not match {my_message.get("message")} '
                               f'vs {sentence.encode("utf-8").hex()}')
             return NOTWORKING
+        return OK
+
+class ThreeMessageChecker(WebChecker):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, checker_tag='message3', **kwargs)
+    def place_flag(self):
+        status, creds1 = self.get_or_create_user(self.tick, tag='1')
+        if status != OK: return status
+        status, creds2 = self.get_or_create_user(self.tick, tag='2')
+        if status != OK: return status
+        status, creds3 = self.get_or_create_user(self.tick, tag='3')
+        if status != OK: return status
+        s = requests.Session()
+        handshake = random.choices(string.ascii_lowercase + string.digits, k=10)
+        status, _ = self.post(s, '/login', data={**creds1, 'handshake': handshake})
+        if status != OK: return status
+        flag = self.get_flag(self.tick)
+        status, r = self.post(s, '/post_message', data={
+            'message': json.dumps({
+                'encrypted': True,
+                'message': flag.encode('utf-8').hex(),
+                'recipients': [creds2['username'], creds3['username']]
+            })
+        })
+        if status != OK: return status
+        if not 'token' in r: return NOTWORKING
+        ident = self.make_ident('token1', self.tick)
+        self.store_blob(ident, r['token'].encode('utf-8'))
+        return OK
+
+    def check_flag(self, tick):
+        token = self.retrieve_blob(self.make_ident('token1', tick)).decode('utf-8')
+        if token is None:
+            raise RuntimeError('Could not find token for flag message')
+        status, creds1 = self.get_or_create_user(tick, create=False, tag='1')
+        if status != OK: return status
+        status, creds2 = self.get_or_create_user(tick, create=False, tag='2')
+        if status != OK: return status
+        status, creds3 = self.get_or_create_user(tick, create=False, tag='3')
+        if status != OK: return status
+        s = requests.Session()
+        handshake = random.choices(string.ascii_lowercase + string.digits, k=10)
+        status, _ = self.post(s, '/login', data={**creds1, 'handshake': handshake})
+        if status != OK: return status
+        status, (d,n) = self.get_priv_key(s)
+        if status != OK: return status
+        status, r = self.get(s, '/broadcast_messages')
+        if status != OK: return status
+        messages = r['ok']
+        for message in messages:
+            if message.get('token') != token: continue
+            flag_message = message
+            break
+        else:
+            return NOTFOUND
+        if flag_message.get('author') != creds1['username']:
+            return NOTWORKING
+        if not flag_message.get('encrypted', False):
+            return NOTWORKING
+        status, flag_check = decrypt_message(flag_message, 3, d, n, logger=self.logger)
+        if status != OK: return status
+        flag_check = flag_check.decode('utf-8')
+        if self.get_flag(tick) != flag_check:
+            self.logger.error(f'Failed to decrypt flag, got {flag_check} vs {self.get_flag(tick)}')
+            return NOTWORKING
+        return OK
+
+    def check_service(self):
+        status, creds1 = self.get_or_create_user(self.tick, create=False, tag='1')
+        if status != OK: return status
+        status, creds2 = self.get_or_create_user(self.tick, create=False, tag='2')
+        if status != OK: return status
+        status, creds3 = self.get_or_create_user(self.tick, create=False, tag='3')
+        if status != OK: return status
+        s = requests.Session()
+        handshake = random.choices(string.ascii_lowercase + string.digits, k=10)
+        status, _ = self.post(s, '/login', data={**creds1, 'handshake': handshake})
+        if status != OK: return status
+        sentence = make_sentence()
+        status, r = self.post(s, '/post_message', data={
+            'message': json.dumps({
+                'encrypted': True,
+                'message': sentence.encode('utf-8').hex(),
+                'recipients': [creds2['username'], creds3['username']]
+            })
+        })
+        if status != OK: return status
+        if not 'token' in r: return NOTWORKING
+        token = r['token']
+        status, r = self.get(s, '/broadcast_messages')
+        if status != OK: return status
+        messages = r['ok']
+        for message in messages:
+            if message.get('token') != token: continue
+            my_message = message
+            break
+        else:
+            return NOTFOUND
+        if my_message.get('author') != creds1['username']:
+            return NOTWORKING
+        if my_message.get('encrypted') != True:
+            return NOTWORKING
+        if set(my_message.get('recipients')) != set([creds2['username'], creds3['username']]):
+            self.logger.error(f'Incorrect recipients list {my_message.get("recipients")}')
+            return NOTWORKING
+
+        # try to decrypt all three ways
+        status, (d1,n1) = self.get_priv_key(s)
+        if status != OK: return status
+        status, sentence_check = decrypt_message(my_message, 3, d1, n1, logger=self.logger)
+        if status != OK: return status
+        if sentence_check != sentence.encode('utf-8'):
+            self.logger.error(f'Message did not match {sentence_check} '
+                              f'vs {sentence.encode("utf-8")}')
+            return NOTWORKING
+
+        s = requests.Session()
+        handshake = random.choices(string.ascii_lowercase + string.digits, k=10)
+        status, _ = self.post(s, '/login', data={**creds2, 'handshake': handshake})
+        if status != OK: return status
+        status, (d2,n2) = self.get_priv_key(s)
+        if status != OK: return status
+        status, sentence_check = decrypt_message(my_message, 3, d2, n2, logger=self.logger)
+        if status != OK: return status
+        if sentence_check != sentence.encode('utf-8'):
+            self.logger.error(f'Message did not match {sentence_check} '
+                              f'vs {sentence.encode("utf-8")}')
+            return NOTWORKING
+
+        s = requests.Session()
+        handshake = random.choices(string.ascii_lowercase + string.digits, k=10)
+        status, _ = self.post(s, '/login', data={**creds3, 'handshake': handshake})
+        if status != OK: return status
+        status, (d3,n3) = self.get_priv_key(s)
+        if status != OK: return status
+        status, sentence_check = decrypt_message(my_message, 3, d3, n3, logger=self.logger)
+        if status != OK: return status
+        if sentence_check != sentence.encode('utf-8'):
+            self.logger.error(f'Message did not match {sentence_check} '
+                              f'vs {sentence.encode("utf-8")}')
+            return NOTWORKING
+
         return OK
