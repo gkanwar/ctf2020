@@ -72,12 +72,14 @@ def encrypt_message(message, *, author, recipients):
         
 def list_broadcasted():
     all_messages = _load_messages()
-    return [m for m in all_messages if m.get('recipients', []) == []]
+    # return [m for m in all_messages if m.get('recipients', []) == []]
+    return all_messages
 
 def list_received_or_sent(username):
-    all_messages = _load_messages()
-    return [m for m in all_messages
-            if (
-                    username in m.get('recipients', []) or
-                    m.get('recipients', []) != [] and username == m.get('author')
-            )]
+    return [] # TODO: No private messages?
+    # all_messages = _load_messages()
+    # return [m for m in all_messages
+    #         if (
+    #                 username in m.get('recipients', []) or
+    #                 m.get('recipients', []) != [] and username == m.get('author')
+    #         )]
