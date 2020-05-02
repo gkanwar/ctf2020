@@ -3,7 +3,7 @@ import time
 from auth import check_username, check_user_exists, check_login, register_user
 from log import logger
 from user import list_users, User
-from message import encrypt_message, save_message, list_broadcasted, list_received_or_sent
+from message import encrypt_message, save_message, list_broadcast_messages, list_messages
 
 def post_api(*args, send_error, **kwargs):
     try:
@@ -49,7 +49,6 @@ def _post_api(path, query, session, *, send_json, send_error):
         if not set(message_keys) <= set(message):
             return send_json({'error': 'Bad message format'})
         rs = message.get('recipients', [])
-        print('rs =', rs)
         if not isinstance(rs, list):
             return send_json({'error': 'Bad message format'})
         if len(rs) > 2:
@@ -100,7 +99,8 @@ def _get_api(path, query, session, *, send_json, send_error):
             u = User(username)
             status = u.get('status')
             if status is not None:
-                out.append({'username': username, 'status': status})
+                # Some users wanted to keep their statuses private
+                out.append({'username': username}) #, 'status': status})
         return send_json({'ok': out})
     elif path == '/priv_key':
         if not session:
@@ -123,10 +123,10 @@ def _get_api(path, query, session, *, send_json, send_error):
             pub_key[k] = hex(pub_key[k])[2:]
         return send_json({'ok': pub_key})
     elif path == '/broadcast_messages':
-        return send_json({'ok': list_broadcasted()})
+        return send_json({'ok': list_broadcast_messages()})
     elif path == '/messages':
         if not session:
             return send_json({'error': 'Not logged in'})
-        return send_json({'ok': list_received_or_sent(session.get('username'))})
+        return send_json({'ok': list_messages(session.get('username'))})
     else:
         return send_error(404, 'Not Found')

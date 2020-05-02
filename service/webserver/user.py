@@ -24,7 +24,6 @@ def _save(username, data):
 def list_users():
     user_files = glob.glob(USER_DIR + '*' + USER_EXT)
     users = [os.path.splitext(os.path.basename(f))[0] for f in user_files]
-    print('list_users', users)
     return users
 
 def init_user(username):

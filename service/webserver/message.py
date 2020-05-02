@@ -40,47 +40,36 @@ def rsa_decrypt(priv_key, bs):
     m = int.from_bytes(bs, byteorder='big')
     n = priv_key['n']
     d = priv_key['d']
-    print('n =', n)
-    print('d =', d)
     return pow(m, d, n).to_bytes(RSA_BYTES, byteorder='big')
 
 def encrypt_message(message, *, author, recipients):
     rs = [User(r) for r in recipients]
     targets = [author.get('pub_key')] + [r.get('pub_key') for r in rs]
-    print('targets', targets)
     aes_key = os.urandom(AES.block_size)
-    print('Dec key =', aes_key.hex())
     iv = os.urandom(AES.block_size)
     cipher = AES.new(aes_key, AES.MODE_CBC, iv)
     encrypted_message = cipher.encrypt(pad(message))
     aes_key_pad = b'\x00'*(2*AES.block_size) + aes_key*2 + os.urandom(RSA_BYTES - 4*AES.block_size)
-    print('AES key pad =', aes_key_pad.hex())
     encrypted_keys = [rsa_encrypt(rsa_key, aes_key_pad) for rsa_key in targets]
     ### CHECK
-    print('Encrypted message format:')
-    for k in encrypted_keys:
-        print('Enc key =', k.hex())
-    print('iv =', iv.hex())
-    print('Enc message =', encrypted_message.hex())
-    for enc_key,r in zip(encrypted_keys, [author] + rs):
-        assert rsa_decrypt(r.get('priv_key'), enc_key) == aes_key_pad, \
-            (f'Decrypt failed for user {r.username}:' '\n'
-             f'{rsa_decrypt(r.get("priv_key"), enc_key).hex()}' '\nvs\n'
-             f'{aes_key_pad.hex()}')
+    # print('Encrypted message format:')
+    # for k in encrypted_keys:
+    #     print('Enc key =', k.hex())
+    # print('iv =', iv.hex())
+    # print('Enc message =', encrypted_message.hex())
+    # for enc_key,r in zip(encrypted_keys, [author] + rs):
+    #     assert rsa_decrypt(r.get('priv_key'), enc_key) == aes_key_pad, \
+    #         (f'Decrypt failed for user {r.username}:' '\n'
+    #          f'{rsa_decrypt(r.get("priv_key"), enc_key).hex()}' '\nvs\n'
+    #          f'{aes_key_pad.hex()}')
     ### END CHECK
     full_encrypted_message = b''.join(encrypted_keys) + iv + encrypted_message
     return full_encrypted_message
-        
-def list_broadcasted():
+
+# Everyone sees everything, but we have crypto!
+def list_broadcast_messages():
     all_messages = _load_messages()
-    # return [m for m in all_messages if m.get('recipients', []) == []]
     return all_messages
 
-def list_received_or_sent(username):
-    return [] # TODO: No private messages?
-    # all_messages = _load_messages()
-    # return [m for m in all_messages
-    #         if (
-    #                 username in m.get('recipients', []) or
-    #                 m.get('recipients', []) != [] and username == m.get('author')
-    #         )]
+def list_messages(username):
+    return []
