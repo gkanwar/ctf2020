@@ -7,6 +7,7 @@ from Crypto import Random
 from Crypto.Cipher import AES
 from user import User
 from util import get_utc_past
+from aes import pad, unpad
 
 SESS_COOKIE_NAME = 'session_id'
 USER_COOKIE_NAME = 'username'
@@ -21,13 +22,6 @@ else:
     with open(STORE_KEY_FILE, 'rb') as f:
         STORE_KEY = f.read(16)
 
-def pad(s):
-    padding = AES.block_size - len(s) % AES.block_size
-    return s + bytes([padding]*padding)
-def unpad(s):
-    padding = s[-1]
-    assert isinstance(padding, int)
-    return s[:-padding]
 
 class Session():
     @staticmethod

@@ -1,9 +1,14 @@
+from Crypto.Cipher import AES
 import glob
 import json
+import os
 import random
 import string
+from aes import pad
 from log import logger
+from user import RSA_BITS, RSA_E
 
+RSA_BYTES = RSA_BITS // 8
 MESSAGE_DIR = './private/'
 MESSAGE_EXT = '.data'
 
@@ -25,6 +30,23 @@ def _load_messages():
         except:
             logger.warning(f'Corrupt message file {f}, skipping', exc_info=True)
     return messages
+
+def rsa_encrypt(pub_key, bs):
+    m = int.from_bytes(bs, byteorder='big')
+    n = pub_key['n']
+    return pow(m, RSA_E, n).to_bytes(RSA_BYTES, byteorder='big')
+
+def encrypt_message(message, *, author):
+    # TODO: recipients
+    targets = [author.get('pub_key')]
+    aes_key = os.urandom(AES.block_size)
+    iv = os.urandom(AES.block_size)
+    cipher = AES.new(aes_key, AES.MODE_CBC, iv)
+    encrypted_message = cipher.encrypt(pad(message))
+    aes_key_pad = aes_key + os.urandom(RSA_BYTES - AES.block_size)
+    encrypted_key = b''.join([rsa_encrypt(rsa_key, aes_key_pad) for rsa_key in targets])
+    full_encrypted_message = encrypted_key + iv + encrypted_message
+    return full_encrypted_message
         
 def list_broadcasted():
     all_messages = _load_messages()

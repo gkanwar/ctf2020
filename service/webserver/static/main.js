@@ -181,16 +181,16 @@ function expMod(base, exp, mod) {
     return (base * expMod(base, (exp-1n), mod)) % mod;
   }
 }
-function rsaEncrypt(pubKey, bytes) {
-  const m = BigInt('0x' + aesjs.utils.hex.fromBytes(bytes));
-  const n = BigInt('0x' + pubKey.n);
-  const e = 3n;
-  let out = expMod(m, e, n).toString(16);
-  if (out.length % 2 != 0) {
-    out = '0' + out;
-  }
-  return aesjs.utils.hex.toBytes(out);
-}
+// function rsaEncrypt(pubKey, bytes) {
+//   const m = BigInt('0x' + aesjs.utils.hex.fromBytes(bytes));
+//   const n = BigInt('0x' + pubKey.n);
+//   const e = 3n;
+//   let out = expMod(m, e, n).toString(16);
+//   if (out.length % 2 != 0) {
+//     out = '0' + out;
+//   }
+//   return aesjs.utils.hex.toBytes(out);
+// }
 function rsaDecrypt(privKey, crypt) {
   const mp = BigInt('0x' + aesjs.utils.hex.fromBytes(crypt));
   const n = BigInt('0x' + privKey.n);
@@ -217,26 +217,26 @@ function postMessage(event) {
   const message = formData.get('message');
   let messageBytes = aesjs.utils.utf8.toBytes(message);
   const encrypted = !!(formData.get('encrypt'));
-  if (encrypted) {
-    const key = randomBytes(16);
-    const iv = randomBytes(16);
-    messageBytes = padBytes(messageBytes);
-    const aesCbc = new aesjs.ModeOfOperation.cbc(key, iv);
-    messageBytes = aesCbc.encrypt(messageBytes);
-    const keyExt = [].concat(...Array.from({length: 8}, () => key));
-    const encryptedKey = rsaEncrypt(rsaKey, keyExt);
-    if (encryptedKey.length > 128) {
-      throw Error(`Unexpected key length ${encryptedKey.length}`);
-    }
-    const encryptedKeyPad = new Uint8Array(128);
-    encryptedKeyPad.fill(0, 0, 128-encryptedKey.length);
-    encryptedKeyPad.set(encryptedKey, 128-encryptedKey.length);
-    const combinedMessage = new Uint8Array(128 + 16 + messageBytes.length);
-    combinedMessage.set(encryptedKeyPad);
-    combinedMessage.set(iv, 128);
-    combinedMessage.set(messageBytes, 128+16);
-    messageBytes = combinedMessage;
-  }
+  // if (encrypted) {
+  //   const key = randomBytes(16);
+  //   const iv = randomBytes(16);
+  //   messageBytes = padBytes(messageBytes);
+  //   const aesCbc = new aesjs.ModeOfOperation.cbc(key, iv);
+  //   messageBytes = aesCbc.encrypt(messageBytes);
+  //   const keyExt = [].concat(...Array.from({length: 8}, () => key));
+  //   const encryptedKey = rsaEncrypt(rsaKey, keyExt);
+  //   if (encryptedKey.length > 128) {
+  //     throw Error(`Unexpected key length ${encryptedKey.length}`);
+  //   }
+  //   const encryptedKeyPad = new Uint8Array(128);
+  //   encryptedKeyPad.fill(0, 0, 128-encryptedKey.length);
+  //   encryptedKeyPad.set(encryptedKey, 128-encryptedKey.length);
+  //   const combinedMessage = new Uint8Array(128 + 16 + messageBytes.length);
+  //   combinedMessage.set(encryptedKeyPad);
+  //   combinedMessage.set(iv, 128);
+  //   combinedMessage.set(messageBytes, 128+16);
+  //   messageBytes = combinedMessage;
+  // }
   formData.set('message', JSON.stringify({
     'encrypted': encrypted,
     'message': aesjs.utils.hex.fromBytes(messageBytes)

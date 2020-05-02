@@ -3,7 +3,7 @@ import time
 from auth import check_username, check_login, register_user
 from log import logger
 from user import list_users, User
-from message import save_message, list_broadcasted, list_received
+from message import encrypt_message, save_message, list_broadcasted, list_received
 
 def post_api(*args, send_error, **kwargs):
     try:
@@ -55,10 +55,15 @@ def _post_api(path, query, session, *, send_json, send_error):
             for r in rs:
                 if not check_username(r):
                     return send_json({'error': 'Bad message format'})
+        if message['encrypted']:
+            # TODO: Recipients
+            message_bytes = bytes.fromhex(message['message'])
+            message_bytes = encrypt_message(message_bytes, author=session.user)
+            message['message'] = message_bytes.hex()
         message['encrypted'] = bool(message['encrypted'])
         message['author'] = session.get('username')
         message['timestamp'] = time.time()
-        token = save_message(message)
+        save_message(message)
         return send_json({'ok': 'Message published'})
     elif path == '/set_status':
         if 'status' not in query:
