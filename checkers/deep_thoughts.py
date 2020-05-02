@@ -88,11 +88,12 @@ class WebChecker(BaseChecker):
     def get_or_create_user(self, tick, *, tag=None, create=True):
         ident = self.make_ident('creds', tick, tag=tag)
         blob = self.retrieve_blob(ident)
-        if blob is not None:
+        if blob is not None and blob != b'':
             return OK, pickle.loads(blob)
         self.logger.info(f'Did not find user for tick {tick} with ident {ident}, creating...')
         if not create:
-            raise RuntimeError(f'User blob should already exist with ident {ident}')
+            self.logger.warn(f'User blob does not exist with ident {ident}, probably missed tick')
+            return NOTFOUND, None
         username = 'test' + ''.join(random.choices(string.digits , k=16))
         password = ''.join(random.choices(string.printable, k=32))
         creds = {'username': username, 'password': password}
@@ -197,9 +198,11 @@ class MessageChecker(WebChecker):
         return OK
 
     def check_flag(self, tick):
-        token = self.retrieve_blob(self.make_ident('token1', tick)).decode('utf-8')
-        if token is None:
-            raise RuntimeError('Could not find token for flag message')
+        ident = self.make_ident('token1', tick)
+        token = self.retrieve_blob(ident).decode('utf-8')
+        if token is None or token == b'':
+            self.logger.warn(f'Token not found for ident, probably missed tick')
+            return NOTFOUND
         status, creds = self.get_or_create_user(tick, create=False)
         if status != OK: return status
         s = requests.Session()
@@ -295,8 +298,9 @@ class ThreeMessageChecker(WebChecker):
 
     def check_flag(self, tick):
         token = self.retrieve_blob(self.make_ident('token1', tick)).decode('utf-8')
-        if token is None:
-            raise RuntimeError('Could not find token for flag message')
+        if token is None or token == b'':
+            self.logger.warn(f'Token not found for ident, probably missed tick')
+            return NOTFOUND
         status, creds1 = self.get_or_create_user(tick, create=False, tag='1')
         if status != OK: return status
         status, creds2 = self.get_or_create_user(tick, create=False, tag='2')
