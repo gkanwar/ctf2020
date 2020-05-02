@@ -14,6 +14,27 @@ def unpad(s):
     assert isinstance(padding, int)
     return s[:-padding]
 
+one_word_tokens = ['hello', 'test', 'hihi', 'sup', 'testing', '12341234', 'asdfasdf']
+keymash_keys = ['a', 's', 'd', 'f', 'q', 'w', 'e', 'r']
+keymash_rarer_keys = ['1', '2', '3', '4', 'f', 'g', 't', '5']
+def make_keymash():
+    out = ''
+    while True:
+        u = random.random()
+        if u < 0.6:
+            out += random.choice(keymash_keys)
+        elif u < 0.9:
+            out += random.choice(keymash_rarer_keys)
+        else:
+            return out
+def make_sentence():
+    u = random.random()
+    if u < 0.3: # keymash
+        return make_keymash()
+    else: # one-word post
+        return random.choice(one_word_tokens)
+
+
 ### Abstract class implementing a few utility methods
 class WebChecker(BaseChecker):
     def __init__(self, tick, team, service, ip, *, checker_tag):
@@ -192,4 +213,37 @@ class MessageChecker(WebChecker):
         return OK
 
     def check_service(self):
+        status, creds = self.get_or_create_user(self.tick)
+        if status != OK: return status
+        s = requests.Session()
+        handshake = random.choices(string.ascii_lowercase + string.digits, k=10)
+        status, _ = self.post(s, '/login', data={**creds, 'handshake': handshake})
+        if status != OK: return status
+        sentence = make_sentence()
+        status, r = self.post(s, '/post_message', data={
+            'message': json.dumps({
+                'encrypted': False,
+                'message': sentence.encode('utf-8').hex()
+            })
+        })
+        if status != OK: return status
+        if not 'token' in r: return NOTWORKING
+        token = r['token']
+        status, r = self.get(s, '/broadcast_messages')
+        if status != OK: return status
+        messages = r['ok']
+        for message in messages:
+            if message.get('token') != token: continue
+            my_message = message
+            break
+        else:
+            return NOTFOUND
+        if my_message.get('author') != creds['username']:
+            return NOTWORKING
+        if my_message.get('encrypted') != False:
+            return NOTWORKING
+        if my_message.get('message') != sentence.encode('utf-8').hex():
+            self.logger.error(f'Message did not match {my_message.get("message")} '
+                              f'vs {sentence.encode("utf-8").hex()}')
+            return NOTWORKING
         return OK
