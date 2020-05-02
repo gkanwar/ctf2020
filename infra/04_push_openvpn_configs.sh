@@ -26,4 +26,5 @@ for t in ${TEAMS}; do
     scp team_confs/team${t}_server.conf ec2-user@${ip}:ovpn_confs/vuln_server.conf
     ssh ec2-user@${ip} 'sudo cp ovpn_confs/vuln_client.conf /etc/openvpn/client/'
     ssh ec2-user@${ip} 'sudo cp ovpn_confs/vuln_server.conf /etc/openvpn/server/'
+    ssh ec2-user@${ip} './restart_services.sh'
 done
