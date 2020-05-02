@@ -6,4 +6,4 @@ RUN set -ex && \
 ADD . /app
 
 USER www-data
-CMD python3 webserver.py 7777
+CMD python3 -u webserver.py 7777
