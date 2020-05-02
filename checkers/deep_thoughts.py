@@ -1,4 +1,6 @@
 from ctf_gameserver.checker import BaseChecker, OK, TIMEOUT, NOTWORKING, NOTFOUND
+from Crypto.Cipher import AES
+import json
 import pickle
 import random
 import requests
@@ -7,10 +9,17 @@ import string
 
 MONITOR_PORT = 7778
 
-class StatusChecker(BaseChecker):
-    def __init__(self, tick, team, service, ip):
+def unpad(s):
+    padding = s[-1]
+    assert isinstance(padding, int)
+    return s[:-padding]
+
+### Abstract class implementing a few utility methods
+class WebChecker(BaseChecker):
+    def __init__(self, tick, team, service, ip, *, checker_tag):
         super().__init__(tick, team, service, ip)
         self._prefix = f'http://{ip}'
+        self._checker_tag = checker_tag
 
     def req(self, s, method, path, *, data, timeout):
         method = getattr(s, method)
@@ -32,8 +41,10 @@ class StatusChecker(BaseChecker):
     def get(self, s, path, *, timeout=10):
         return self.req(s, 'get', path, data=None, timeout=timeout)
 
+    def make_ident(self, ident_tag, tick):
+        return f'{ident_tag}_{self._checker_tag}_{self._service}_{self._team}_{tick}'
     def get_or_create_user(self, tick, *, create=True):
-        ident = f'creds_status_{self._service}_{self._team}_{tick}'
+        ident = self.make_ident('creds', tick)
         blob = self.retrieve_blob(ident)
         if blob is not None:
             return OK, pickle.loads(blob)
@@ -50,6 +61,10 @@ class StatusChecker(BaseChecker):
         self.store_blob(ident, blob)
         return OK, creds
 
+
+class StatusChecker(WebChecker):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, checker_tag='status', **kwargs)
     def place_flag(self):
         status, creds = self.get_or_create_user(self.tick)
         if status != OK: return status
@@ -105,3 +120,76 @@ class StatusChecker(BaseChecker):
         for line in lines:
             if sess_id_prefix in line: return OK
         return NOTWORKING
+
+
+class MessageChecker(WebChecker):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, checker_tag='message', **kwargs)
+    def place_flag(self):
+        status, creds = self.get_or_create_user(self.tick)
+        if status != OK: return status
+        s = requests.Session()
+        handshake = random.choices(string.ascii_lowercase + string.digits, k=10)
+        status, _ = self.post(s, '/login', data={**creds, 'handshake': handshake})
+        if status != OK: return status
+        flag = self.get_flag(self.tick)
+        status, r = self.post(s, '/post_message', data={
+            'message': json.dumps({
+                'encrypted': True,
+                'message': flag.encode('utf-8').hex()
+            })
+        })
+        if status != OK: return status
+        if not 'token' in r: return NOTWORKING
+        ident = self.make_ident('token1', self.tick)
+        self.store_blob(ident, r['token'].encode('utf-8'))
+        return OK
+
+    def check_flag(self, tick):
+        token = self.retrieve_blob(self.make_ident('token1', tick)).decode('utf-8')
+        if token is None:
+            raise RuntimeError('Could not find token for flag message')
+        status, creds = self.get_or_create_user(tick, create=False)
+        if status != OK: return status
+        s = requests.Session()
+        handshake = random.choices(string.ascii_lowercase + string.digits, k=10)
+        status, _ = self.post(s, '/login', data={**creds, 'handshake': handshake})
+        if status != OK: return status
+        status, r = self.get(s, '/priv_key')
+        if status != OK: return status
+        priv_key = r['ok']
+        if 'd' not in priv_key or 'n' not in priv_key:
+            return NOTWORKING
+        d, n = int(priv_key['d'], 16), int(priv_key['n'], 16)
+        status, r = self.get(s, '/broadcast_messages')
+        if status != OK: return status
+        messages = r['ok']
+        for message in messages:
+            if message.get('token') != token: continue
+            flag_message = message
+            break
+        else:
+            return NOTFOUND
+        if flag_message.get('author') != creds['username']:
+            return NOTWORKING
+        if not flag_message.get('encrypted', False):
+            return NOTWORKING
+        encrypted = bytes.fromhex(flag_message.get('message', ''))
+        encrypted_key = encrypted[:128]
+        iv = encrypted[128:128+16]
+        encrypted_message = encrypted[128+16:]
+        m = int.from_bytes(encrypted_key, byteorder='big')
+        aes_key_pad = pow(m, d, n).to_bytes(128, byteorder='big')
+        if aes_key_pad[:32] != b'\x00'*32:
+            self.logger.error(f'Failed to decrypt AES key, got {aes_key_pad.hex()}')
+            return NOTWORKING
+        aes_key = aes_key_pad[32:48]
+        cipher = AES.new(aes_key, AES.MODE_CBC, iv)
+        flag_check = unpad(cipher.decrypt(encrypted_message)).decode('utf-8')
+        if self.get_flag(tick) != flag_check:
+            self.logger.error(f'Failed to decrypt flag, got {flag_check} vs {self.get_flag(tick)}')
+            return NOTWORKING
+        return OK
+
+    def check_service(self):
+        return OK
