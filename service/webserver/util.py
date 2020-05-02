@@ -3,9 +3,6 @@ import wsgiref.handlers as wsgihandlers
 import time
 
 def get_utc_now():
-    return get_utc_timestamp(datetime.datetime.now())
+    return wsgihandlers.format_date_time(time.time())
 def get_utc_past():
-    return get_utc_timestamp(datetime.datetime.min)
-def get_utc_timestamp(timestamp):
-    now = time.mktime(timestamp.timetuple())
-    return wsgihandlers.format_date_time(now)
+    return wsgihandlers.format_date_time(time.time() - 10*60)

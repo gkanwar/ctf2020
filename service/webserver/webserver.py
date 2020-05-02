@@ -77,9 +77,10 @@ def parse_form_data_chunk(chunk):
         return {}
 
 def parse_post_body(body, content_type):
-    content_type, details = content_type.split('; ', 1)
+    if '; ' in content_type:
+        content_type, details = content_type.split('; ', 1)
     if content_type == 'application/x-www-form-urlencoded':
-        return parse_query(body)
+        return parse_query(body.decode('utf-8'))
     elif content_type == 'multipart/form-data':
         if not '=' in details:
             logger.error(f'Bad multipart/xxx spec')
