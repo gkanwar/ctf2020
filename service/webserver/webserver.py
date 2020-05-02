@@ -29,8 +29,8 @@ def parse_query(query):
     for bit in bits:
         if '=' not in bit: continue
         name, value = bit.split('=', 1)
-        name = urllib.parse.unquote(name)
-        value = urllib.parse.unquote(value)
+        name = urllib.parse.unquote_plus(name)
+        value = urllib.parse.unquote_plus(value)
         out[name] = value
     return out
 
