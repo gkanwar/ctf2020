@@ -67,8 +67,8 @@ def _post_api(path, query, session, *, send_json, send_error):
         message['encrypted'] = bool(message['encrypted'])
         message['author'] = session.get('username')
         message['timestamp'] = time.time()
-        save_message(message)
-        return send_json({'ok': 'Message published'})
+        token = save_message(message)
+        return send_json({'ok': 'Message published', 'token': token})
     elif path == '/set_status':
         if 'status' not in query:
             return send_json({'error': 'No status'})

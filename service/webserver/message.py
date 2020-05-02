@@ -14,6 +14,7 @@ MESSAGE_EXT = '.data'
 
 def save_message(message):
     token = ''.join(random.choices(string.ascii_letters, k=12))
+    message['token'] = token
     fname = MESSAGE_DIR + 'post' + str(message['timestamp']) + token + MESSAGE_EXT
     with open(fname, 'w') as fd:
         json.dump(message, fd)
