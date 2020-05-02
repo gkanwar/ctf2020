@@ -447,6 +447,10 @@ function renderTable(objects, keys, prettyKeys) {
       if (key === 'message') {
         tbodyRow.append(renderMessageTd(obj[key], obj.encrypted));
       }
+      else if (key === 'timestamp') {
+        const date = new Date(obj[key]*1000);
+        tbodyRow.append($('<td>').text(date.toLocaleString()));
+      }
       else {
         tbodyRow.append($('<td>').text(obj[key]));
       }
@@ -485,12 +489,22 @@ function renderMessages(container) {
 
 function renderFeed(container) {
   const writeContainer = $('<div>');
-  const writeForm = $('<form>').submit(postMessage);
-  writeForm.append($('<label>', {for: 'message_field'}).text('Enter your Deep Thought'));
+  const writeForm = $('<form>', {class: 'message_form'}).submit(postMessage);
+  writeForm.append($('<label>', {class: 'textarea_header', for: 'message_field'})
+                   .text('Enter your Deep Thought'));
   writeForm.append($('<textarea>', {id: 'message_field', name: 'message'}));
-  writeForm.append($('<input>', {id: 'message_encrypt', type: 'checkbox', name: 'encrypt'}));
-  writeForm.append($('<label>', {for: 'message_encrypt'}).text('Make private'));
-  writeForm.append($('<input>', {class: 'button', type: 'submit', value: 'Publish'}));
+  const writeFormFiddlyBits = $('<div>', {class: 'fiddly_bits'});
+  writeFormFiddlyBits.append(
+    $('<span>', {class: 'message_details'})
+      .text('Private messages are always doubly encrypted using the most modern cipher '
+            + 'and public key technology. Of course they are visible so fans know '
+            + 'you had a Deep Thought!'));
+  const writeFormFiddlyBitsGroup = $('<span>', {class: 'fiddly_bits_group'});
+  writeFormFiddlyBitsGroup.append($('<input>', {id: 'message_encrypt', type: 'checkbox', name: 'encrypt'}));
+  writeFormFiddlyBitsGroup.append($('<label>', {for: 'message_encrypt'}).text('Make private'));
+  writeFormFiddlyBitsGroup.append($('<input>', {class: 'button', type: 'submit', value: 'Publish'}));
+  writeFormFiddlyBits.append(writeFormFiddlyBitsGroup);
+  writeForm.append(writeFormFiddlyBits);
   writeContainer.append(writeForm);
   if (isLoggedIn()) {
     container.append(writeContainer);

@@ -139,3 +139,42 @@ body {
     font-family: monospace;
     color: #ff0000;
 }
+
+form.message_form label.textarea_header {
+    display: block;
+}
+form.message_form textarea {
+    width: 650px;
+    height: 70px;
+    resize: none;
+}
+form.message_form .fiddly_bits {
+    width: 650px;
+    text-align: right;
+}
+form.message_form .fiddly_bits label {
+    padding-left: 2px;
+    padding-right: 5px;
+}
+form.message_form .fiddly_bits .message_details {
+    display: inline-block;
+    width: 410px;
+    text-align: left;
+    font-size: 0.7em;
+    font-style: italic;
+    margin-right: 5px;
+}
+form.message_form .fiddly_bits_group {
+    display: inline-block;
+    width: 190px;
+}
+form.message_form .fiddly_bits_group > input[type=checkbox] {
+    width: 15px;
+}
+form.message_form .fiddly_bits_group > label {
+    width: 65px;
+    overflow: hidden;
+}
+form.message_form .fiddly_bits_group > input[type=submit] {
+    width: 70px;
+}
