@@ -49,6 +49,9 @@ def encrypt_message(message, *, author, recipients):
     iv = os.urandom(AES.block_size)
     cipher = AES.new(aes_key, AES.MODE_CBC, iv)
     encrypted_message = cipher.encrypt(pad(message))
+    ### INTERNAL NOTE: RSA encrypting the identical message with different keys
+    ### INTERNAL NOTE: is bad! Use a random pad _per recipient_. The encryption
+    ### INTERNAL NOTE: fully breaks when broadcasted to >= RSA_E targets.
     aes_key_pad = b'\x00'*(2*AES.block_size) + aes_key*2 + os.urandom(RSA_BYTES - 4*AES.block_size)
     encrypted_keys = [rsa_encrypt(rsa_key, aes_key_pad) for rsa_key in targets]
     ### CHECK

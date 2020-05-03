@@ -492,7 +492,7 @@ function renderMessages(container) {
       allMsg = allMsg.filter(msg => (msg.timestamp !== undefined));
       allMsg.sort((a,b) => (b.timestamp - a.timestamp));
       container.empty();
-      container.append($('<h3>').text('Latest messages'));
+      container.append($('<h3>').text('Latest thoughts'));
       container.append(renderTable(
         allMsg, ['author', 'message', 'recipients', 'timestamp', 'encrypted'],
         ['Author', 'Message', 'To', 'Time', 'Encrypted?']));
