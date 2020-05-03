@@ -4,11 +4,21 @@ DROP MATERIALIZED VIEW IF EXISTS "scoring_scoreboard";
 -- Scoreboard
 CREATE MATERIALIZED VIEW "scoring_scoreboard" AS
 WITH
+  -- Seems very difficult to implement
+  -- attackcount AS (
+  --   SELECT count(*) as num_captured,
+  --          capturing_team_id,
+  -- 	   protecting_team_id,
+  -- 	   service_id
+  --   FROM scoring_capture
+  --   INNER JOIN scoring_flag ON scoring_capture.flag_id = scoring_flag.id
+  --   GROUP BY capturing_team_id, protecting_team_id, service_id
+  -- ),
   attack AS (
     SELECT capturing_team_id as team_id,
            service_id,
-           count(*) as attack,
-           sum(bonus) as bonus
+           1000 * (sqrt(count(*)+4) - 2) as attack,
+           0 as bonus -- skip the bonus stuff
     FROM scoring_capture
     INNER JOIN scoring_flag ON scoring_capture.flag_id = scoring_flag.id
     GROUP BY capturing_team_id, service_id
