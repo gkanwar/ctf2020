@@ -24,7 +24,8 @@ WITH
     GROUP BY capturing_team_id, service_id
   ),
   flagdefense AS (
-    SELECT count(*) as score,
+    SELECT DISTINCT scoring_flag.id,
+           count(*) as score,
            scoring_flag.protecting_team_id as team_id,
 	   scoring_flag.service_id as service_id
     FROM scoring_capture
@@ -72,8 +73,7 @@ WITH
     FROM registration_team
     INNER JOIN auth_user ON auth_user.id = registration_team.user_id
     WHERE is_active = true
-    -- FORNOW:
-    -- 	  AND nop_team = false
+    	  AND nop_team = false
   ),
   fill AS (
     SELECT team_id, scoring_service.id AS service_id
