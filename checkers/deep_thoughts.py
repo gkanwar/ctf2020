@@ -61,12 +61,14 @@ class WebChecker(BaseChecker):
         self._prefix = f'http://{ip}'
         self._checker_tag = checker_tag
 
-    def req(self, s, method, path, *, data, timeout):
+    def req(self, s, method, path, *, data, timeout, json):
         method = getattr(s, method)
         r = method(self._prefix + path, data=data, timeout=timeout)
         if r.status_code != 200:
             self.logger.error(f'{path} status code {r.status_code}')
             return NOTWORKING, None
+        if not json:
+            return OK, r
         try:
             j = r.json()
         except ValueError as e:
@@ -76,10 +78,10 @@ class WebChecker(BaseChecker):
             self.logger.error(f'{path} bad JSON response: {j}')
             return NOTWORKING, None
         return OK, j
-    def post(self, s, path, *, data, timeout=10):
-        return self.req(s, 'post', path, data=data, timeout=timeout)
-    def get(self, s, path, *, timeout=10):
-        return self.req(s, 'get', path, data=None, timeout=timeout)
+    def post(self, s, path, *, data, timeout=10, json=True):
+        return self.req(s, 'post', path, data=data, timeout=timeout, json=json)
+    def get(self, s, path, *, timeout=10, json=True):
+        return self.req(s, 'get', path, data=None, timeout=timeout, json=json)
 
     def make_ident(self, ident_tag, tick, tag=None):
         if tag is not None:
@@ -162,6 +164,13 @@ class StatusChecker(WebChecker):
         return OK
 
     def check_service(self):
+        # Basic check for web interface
+        s = requests.Session()
+        status, _ = self.get(s, '/', json=False)
+        if status != OK: return status
+        status, _ = self.get(s, '/static/main.js', json=False)
+        if status != OK: return status
+        # Check for login / session active
         status, creds = self.get_or_create_user(self.tick)
         if status != OK: return status
         s = requests.Session()
