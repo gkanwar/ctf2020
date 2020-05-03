@@ -27,4 +27,5 @@ for t in ${TEAMS}; do
     ssh ec2-user@${ip} 'sudo cp ovpn_confs/vuln_client.conf /etc/openvpn/client/'
     ssh ec2-user@${ip} 'sudo cp ovpn_confs/vuln_server.conf /etc/openvpn/server/'
     ssh ec2-user@${ip} './restart_services.sh'
+    ssh ec2-user@${ip} './setup_nat.sh'
 done

@@ -48,8 +48,8 @@ for t in ${TEAMS}; do
 	echo "IP unset for team ${t}, skipping client configs"
 	continue
     fi
-    for i in $(seq ${NUM_MEMBERS}); do
-	python3 build_client_config.py ${ip} team${t}_${i}
+    for ind in $(seq ${NUM_MEMBERS}); do
+	python3 build_client_config.py ${ip} team${t}_${ind}
     done
 done
 
