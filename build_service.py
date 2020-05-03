@@ -17,7 +17,7 @@ os.mkdir('./service_prod/monitor')
 os.mkdir('./service_prod/files_private')
 copy_proj_tree('webserver')
 copy_proj_tree('monitor')
-shutil.copytree('./service/webserver/static', './service_prod/webserver/static')
+shutil.copytree('./service/webserver/files', './service_prod/webserver/files')
 # We "lost" the source for monitor_internal, only have .pyc
 py_compile.compile('./service_prod/monitor/monitor_internal.py',
                    cfile='./service_prod/monitor/monitor_internal.pyc')
