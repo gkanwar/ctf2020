@@ -112,6 +112,14 @@ class WebChecker(BaseChecker):
             return NOTWORKING, None
         d, n = int(priv_key['d'], 16), int(priv_key['n'], 16)
         return OK, (d,n)
+    def get_pub_key(self, s, username):
+        status, r = self.get(s, f'/pub_key?username={username}')
+        if status != OK: return status, None
+        pub_key = r['ok']
+        if 'n' not in pub_key:
+            return NOTWORKING, None
+        n = int(pub_key['n'], 16)
+        return OK, n
 
 
 class StatusChecker(WebChecker):
@@ -382,8 +390,17 @@ class ThreeMessageChecker(WebChecker):
             return NOTWORKING
 
         # try to decrypt all three ways
+        status, n1_check = self.get_pub_key(s, creds1['username'])
+        if status != OK: return status
+        status, n2_check = self.get_pub_key(s, creds2['username'])
+        if status != OK: return status
+        status, n3_check = self.get_pub_key(s, creds3['username'])
+        if status != OK: return status
+
+
         status, (d1,n1) = self.get_priv_key(s)
         if status != OK: return status
+        if n1_check != n1: return NOTWORKING
         status, sentence_check = decrypt_message(my_message, 3, d1, n1, logger=self.logger)
         if status != OK: return status
         if sentence_check != sentence.encode('utf-8'):
@@ -397,6 +414,7 @@ class ThreeMessageChecker(WebChecker):
         if status != OK: return status
         status, (d2,n2) = self.get_priv_key(s)
         if status != OK: return status
+        if n2_check != n2: return NOTWORKING
         status, sentence_check = decrypt_message(my_message, 3, d2, n2, logger=self.logger)
         if status != OK: return status
         if sentence_check != sentence.encode('utf-8'):
@@ -410,6 +428,7 @@ class ThreeMessageChecker(WebChecker):
         if status != OK: return status
         status, (d3,n3) = self.get_priv_key(s)
         if status != OK: return status
+        if n3_check != n3: return NOTWORKING
         status, sentence_check = decrypt_message(my_message, 3, d3, n3, logger=self.logger)
         if status != OK: return status
         if sentence_check != sentence.encode('utf-8'):
