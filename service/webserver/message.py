@@ -6,7 +6,7 @@ import random
 import string
 from aes import pad
 from log import logger
-from user import RSA_BITS, RSA_E, User
+from user import RSA_BITS, User
 
 RSA_BYTES = RSA_BITS // 8
 MESSAGE_DIR = './private/'
@@ -35,7 +35,8 @@ def _load_messages():
 def rsa_encrypt(pub_key, bs):
     m = int.from_bytes(bs, byteorder='big')
     n = pub_key['n']
-    return pow(m, RSA_E, n).to_bytes(RSA_BYTES, byteorder='big')
+    enc = (((m**2) % n) * m) % n # efficient mod-exp by squaring
+    return enc.to_bytes(RSA_BYTES, byteorder='big')
 def rsa_decrypt(priv_key, bs):
     m = int.from_bytes(bs, byteorder='big')
     n = priv_key['n']
