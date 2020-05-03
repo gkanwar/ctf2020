@@ -14,7 +14,7 @@ def unpad(s):
     assert isinstance(padding, int)
     return s[:-padding]
 
-one_word_tokens = ['hello', 'test', 'hihi', 'sup', 'testing', '12341234', 'asdfasdf']
+one_word_tokens = ['hello', 'test', 'hihi', 'sup', 'testing', '12341234', 'asdfasdf', '<script>alert("foo")</script>', 'hackhackhack', 'quack', '\' OR TRUE --']
 keymash_keys = ['a', 's', 'd', 'f', 'q', 'w', 'e', 'r']
 keymash_rarer_keys = ['1', '2', '3', '4', 'f', 'g', 't', '5']
 def make_keymash():
@@ -127,6 +127,14 @@ class StatusChecker(WebChecker):
         flag = self.get_flag(self.tick)
         status, _ = self.post(s, '/set_status', data={
             'status': flag
+        })
+        if status != OK: return status
+        sentence = make_sentence()
+        status, r = self.post(s, '/post_message', data={
+            'message': json.dumps({
+                'encrypted': False,
+                'message': sentence.encode('utf-8').hex()
+            })
         })
         if status != OK: return status
         return OK
