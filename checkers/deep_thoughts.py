@@ -254,7 +254,7 @@ class MessageChecker(WebChecker):
         flag_check = flag_check.decode('utf-8')
         if self.get_flag(tick) != flag_check:
             self.logger.error(f'Failed to decrypt flag, got {flag_check} vs {self.get_flag(tick)}')
-            return NOTWORKING
+            return NOTFOUND
         return OK
 
     def check_service(self):
@@ -356,7 +356,7 @@ class ThreeMessageChecker(WebChecker):
         flag_check = flag_check.decode('utf-8')
         if self.get_flag(tick) != flag_check:
             self.logger.error(f'Failed to decrypt flag, got {flag_check} vs {self.get_flag(tick)}')
-            return NOTWORKING
+            return NOTFOUND
         return OK
 
     def check_service(self):
