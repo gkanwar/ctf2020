@@ -13,6 +13,7 @@ KillSignal=SIGQUIT
 Type=notify
 StandardError=syslog
 NotifyAccess=all
+WorkingDirectory=/var/www/
 
 [Install]
 WantedBy=multi-user.target
