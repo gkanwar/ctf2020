@@ -3,10 +3,11 @@ import json
 import os
 import random
 import string
+import time
 from Crypto import Random
 from Crypto.Cipher import AES
 from user import User
-from util import get_utc_past
+from util import get_utc_past, get_utc_future
 from aes import pad, unpad
 
 SESS_COOKIE_NAME = 'session_id'
@@ -22,6 +23,19 @@ else:
     with open(STORE_KEY_FILE, 'rb') as f:
         STORE_KEY = f.read(16)
 
+
+SESSION_EXPIRE_SECONDS = 10*60
+session_last_access = {}
+def clear_old_sessions():
+    global session_last_access
+    updated = {}
+    for k in session_last_access:
+        last_access = session_last_access[k]
+        if time.time() - last_access > SESSION_EXPIRE_SECONDS:
+            del os.environ[k]
+        else:
+            updated[k] = last_access
+    session_last_access = updated
 
 class Session():
     @staticmethod
@@ -43,6 +57,8 @@ class Session():
         if not self.sid in os.environ:
             self.sid = None
             return
+        session_last_access[self.sid] = time.time()
+        clear_old_sessions()
         store_crypt = base64.b64decode(os.environ[self.sid].encode('utf-8'))
         iv = store_crypt[:AES.block_size]
         cipher = AES.new(STORE_KEY, AES.MODE_CBC, iv)
@@ -58,6 +74,8 @@ class Session():
 
     def save_store(self):
         assert self.sid is not None
+        session_last_access[self.sid] = time.time()
+        clear_old_sessions()
         store_pad = pad(json.dumps(self._store).encode('utf-8'))
         iv = Random.new().read(AES.block_size)
         cipher = AES.new(STORE_KEY, AES.MODE_CBC, iv)
@@ -97,13 +115,14 @@ class Session():
                 f'{HANDSHAKE_COOKIE_NAME}=; Expires={get_utc_past()}'
             ]
         username = self._store['username']
+        expiry = f'Expires={get_utc_future(SESSION_EXPIRE_SECONDS)}'
         cookies = [
-            f'{SESS_COOKIE_NAME}={self.sid}',
-            f'{USER_COOKIE_NAME}={username}'
+            f'{SESS_COOKIE_NAME}={self.sid}; {expiry}',
+            f'{USER_COOKIE_NAME}={username}; {expiry}'
         ]
         if self.privileged:
             handshake = self._store['handshake']
-            cookies.append(f'{HANDSHAKE_COOKIE_NAME}={handshake}')
+            cookies.append(f'{HANDSHAKE_COOKIE_NAME}={handshake}; {expiry}')
         return cookies
 
     def __bool__(self):
