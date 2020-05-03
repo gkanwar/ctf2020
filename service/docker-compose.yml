@@ -9,7 +9,7 @@ services:
     ports:
       - 80:7777
     volumes:
-      - ./private:/app/private
+      - ./files_private:/app/files_private
   deep_thoughts_monitor:
     build: monitor
     container_name: deep_thoughts_monitor

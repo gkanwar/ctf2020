@@ -13,7 +13,7 @@ from util import get_utc_now
 
 MAX_HEADERS = 1024
 MAX_CONTENT_LENGTH = 1024*1024
-STATIC_DIR = './static/'
+STATIC_DIR = './files'
 
 def parse_path(path):
     if not '?' in path: path += '?'
@@ -146,34 +146,18 @@ class Webhandler(socketserver.StreamRequestHandler):
     def send_file_content(self, fname):
         self.status_line(200, 'OK')
         self.send_generic_headers()
-        content_type = 'text/plain; charset=UTF-8'
-        if fname.endswith('.css'):
-            content_type = 'text/css'
-        elif fname.endswith('.js'):
-            content_type = 'text/js'
-        elif fname.endswith('.html'):
+        if fname.endswith('.html'):
             content_type = 'text/html'
-        elif fname.endswith('.jpg'):
-            content_type = 'image/jpeg'
-        elif fname.endswith('.png'):
-            content_type = 'image/png'
-        elif fname.endswith('.ico'):
-            content_type = 'image/x-icon'
-        if content_type.startswith('text/plain'):
-            with open(fname, 'r') as f:
-                content = f.read()
         else:
-            with open(fname, 'rb') as f:
-                content = f.read()
+            content_type = 'application/octet-stream'
+        with open(fname, 'rb') as f:
+            content = f.read()
         self.send_headers([
             ('Content-Type', content_type),
             ('Content-Length', len(content))
         ])
         self.end_headers()
-        if isinstance(content, str):
-            self.write_str(content)
-        else:
-            self.wfile.write(content)
+        self.wfile.write(content)
         return True # keep alive
 
 
@@ -248,6 +232,7 @@ class Webhandler(socketserver.StreamRequestHandler):
         if self.session: self.session.save_store()
 
     def get_static(self, subpath):
+        ### INTERNAL NOTE: Directory traversal attack because of missing slash
         if '..' in subpath:
             return self.send_error(403, 'Forbidden')
         fname = STATIC_DIR + subpath
@@ -268,7 +253,7 @@ class Webhandler(socketserver.StreamRequestHandler):
             subpath = path[7:]
             return self.get_static(subpath)
         if path == '/':
-            return self.get_static('home.html')
+            return self.get_static('/home.html')
         else:
             return get_api(path, query, self.session,
                            send_json=self.send_json_content, send_error=self.send_error)

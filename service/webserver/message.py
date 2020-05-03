@@ -9,7 +9,7 @@ from log import logger
 from user import RSA_BITS, User
 
 RSA_BYTES = RSA_BITS // 8
-MESSAGE_DIR = './private/'
+MESSAGE_DIR = './files_private/'
 MESSAGE_EXT = '.data'
 
 def save_message(message):

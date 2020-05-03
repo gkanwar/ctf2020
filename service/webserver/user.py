@@ -3,7 +3,7 @@ import glob
 import json
 import os
 
-USER_DIR = './private/'
+USER_DIR = './files_private/'
 USER_EXT = '.data'
 RSA_BITS = 1024
 RSA_E = 3

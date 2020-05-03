@@ -3,7 +3,7 @@ import os
 import re
 from user import init_user
 
-AUTH_DIR = './private/'
+AUTH_DIR = './files_private/'
 AUTH_SALT_ROUNDS = 6
 AUTH_USER_REGEX = r'^[a-zA-Z0-9]{4,32}$'
 

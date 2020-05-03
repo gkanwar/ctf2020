@@ -14,7 +14,7 @@ shutil.rmtree('./service_prod', ignore_errors=True)
 os.mkdir('./service_prod')
 os.mkdir('./service_prod/webserver')
 os.mkdir('./service_prod/monitor')
-os.mkdir('./service_prod/private')
+os.mkdir('./service_prod/files_private')
 copy_proj_tree('webserver')
 copy_proj_tree('monitor')
 shutil.copytree('./service/webserver/static', './service_prod/webserver/static')
@@ -24,6 +24,6 @@ py_compile.compile('./service_prod/monitor/monitor_internal.py',
 os.remove('./service_prod/monitor/monitor_internal.py')
 
 # Only one dir writeable by www-data
-os.chmod('./service_prod/private', 0o777)
+os.chmod('./service_prod/files_private', 0o777)
 
 shutil.copy('./service/docker-compose.yml', './service_prod/docker-compose.yml')

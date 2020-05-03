@@ -14,7 +14,7 @@ SESS_COOKIE_NAME = 'session_id'
 USER_COOKIE_NAME = 'username'
 HANDSHAKE_COOKIE_NAME = 'session_handshake'
 SESSION_ID_LEN = 32
-STORE_KEY_FILE = './private/store.key'
+STORE_KEY_FILE = './files_private/store.key'
 if not os.path.isfile(STORE_KEY_FILE):
     STORE_KEY = os.urandom(16)
     with open(STORE_KEY_FILE, 'wb') as f:
