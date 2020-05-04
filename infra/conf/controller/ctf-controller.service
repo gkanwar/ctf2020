@@ -1,0 +1,33 @@
+[Unit]
+Description=CTF Gameserver Controller
+After=postgresql.service
+
+[Service]
+Type=notify
+DynamicUser=yes
+# Python breaks without HOME environment variable and with `DynamicUser`
+Environment=HOME=/tmp
+EnvironmentFile=/etc/ctf-gameserver/controller.env
+ExecStart=/usr/bin/ctf-controller
+Restart=on-failure
+
+# Security options
+CapabilityBoundingSet=
+# REVISIT: Enable after Debian Stretch
+#LockPersonality=yes
+MemoryDenyWriteExecute=yes
+NoNewPrivileges=yes
+PrivateDevices=yes
+PrivateTmp=yes
+PrivateUsers=yes
+ProtectControlGroups=yes
+ProtectHome=yes
+ProtectKernelModules=yes
+ProtectKernelTunables=yes
+ProtectSystem=strict
+RestrictNamespaces=yes
+RestrictRealtime=yes
+SystemCallArchitectures=native
+
+[Install]
+WantedBy=multi-user.target

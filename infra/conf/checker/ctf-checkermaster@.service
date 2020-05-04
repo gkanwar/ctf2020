@@ -1,0 +1,20 @@
+[Unit]
+Description=CTF Checker Runner
+After=network.target postgresql.service
+
+[Service]
+Type=notify
+ExecStart=/usr/bin/ctf-checkermaster --journald
+ExecStop=/bin/kill -s usr1 $MAINPID
+WatchdogSec=20
+Restart=on-failure
+TimeoutStopSec=65
+EnvironmentFile=/etc/ctf-gameserver/checkermaster.env
+EnvironmentFile=-/etc/ctf-gameserver/checker/%i.env
+Environment=PYTHONPATH=/etc/ctf-gameserver/checker/modules/
+User=ec2-user
+Group=ec2-user
+SyslogIdentifier=ctf-checkermaster@%i
+
+[Install]
+WantedBy=multi-user.target

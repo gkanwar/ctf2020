@@ -1,0 +1,16 @@
+[Unit]
+Description=CTF Flag-Submission Service
+Wants=postgresql.service
+After=postgresql.service
+
+[Service]
+Type=notify
+EnvironmentFile=/etc/ctf-gameserver/submission.env
+ExecStart=/usr/bin/ctf-submission --port %i
+User=ec2-user
+Group=ec2-user
+RestartSec=10
+Restart=on-failure
+
+[Install]
+WantedBy=multi-user.target
