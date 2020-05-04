@@ -18,11 +18,10 @@ def exploit(target):
         return
     for k in envvars:
         if k.startswith('SID'):
-            # We also have the encrypted blob in `envvars[k]`, but I don't think
-            # there is a way to decrypt this without also leaking the AES key
-            # used by the server.
+            # We also have the encrypted blob in `envvars[k]`, you could combine
+            # this with the leaky private files attack to decrypt.
             print(f'Stole session id: {k}')
-    # To actually steal the session, we also need to pair the SID with a user,
+    # ... or steal the session. We need to pair the SID with a user,
     # but can just try to match with recent messages for example.
     pass # TODO
 
