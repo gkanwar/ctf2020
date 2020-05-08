@@ -172,6 +172,7 @@ function unpadBytes(bytes) {
     return bytes.slice(0, bytes.length-pad);
   }
 }
+// NOTE: JS BigInt seems to be unsupported on most recent copies of Safari
 function expMod(base, exp, mod) {
   if (exp == 0) return 1n;
   if (exp % 2n == 0) {
